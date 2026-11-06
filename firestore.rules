@@ -1,0 +1,93 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owns(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function validId(value) {
+      return value is string
+        && value.matches('^[A-Za-z0-9_-]{1,128}$')
+        && !value.matches('^__.*__$');
+    }
+
+    function validCardReference(value) {
+      return value is string && value.size() > 0 && value.size() <= 128;
+    }
+
+    function validDuration(value) {
+      return value == null || (value is int && value >= 1 && value <= 1440);
+    }
+
+    function validMillis(value) {
+      return value is int
+        && value >= -8640000000000000
+        && value <= 8640000000000000;
+    }
+
+    function validSnapshot(data) {
+      return data.name is string
+        && data.name.trim().size() > 0
+        && data.name.size() <= 32
+        && data.icon in [
+          'sun', 'utensils', 'moon', 'coffee', 'book',
+          'dumbbell', 'languages', 'users', 'leaf', 'sparkles'
+        ]
+        && data.color in ['sage', 'amber', 'rose', 'blue', 'lavender']
+        && validDuration(data.duration);
+    }
+
+    function validCard(data, id) {
+      return data.keys().hasAll(['id', 'name', 'icon', 'color', 'duration'])
+        && data.keys().hasOnly(['id', 'name', 'icon', 'color', 'duration'])
+        && validId(data.id)
+        && data.id == id
+        && validSnapshot(data);
+    }
+
+    function validEntry(data, id) {
+      return data.keys().hasAll([
+          'id', 'cardId', 'name', 'icon', 'color', 'start',
+          'end', 'duration', 'note', 'estimated', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'cardId', 'name', 'icon', 'color', 'start',
+          'end', 'duration', 'note', 'estimated', 'createdAt'
+        ])
+        && validId(data.id)
+        && data.id == id
+        && validCardReference(data.cardId)
+        && validSnapshot(data)
+        && validMillis(data.end)
+        && validMillis(data.createdAt)
+        && data.note is string
+        && data.note.size() <= 500
+        && data.estimated == true
+        && (
+          (data.duration == null && data.start == null)
+          || (
+            data.duration != null
+            && validMillis(data.start)
+            && data.start == data.end - data.duration * 60000
+          )
+        );
+    }
+
+    match /users/{uid}/cards/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validCard(request.resource.data, id);
+    }
+
+    match /users/{uid}/entries/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validEntry(request.resource.data, id);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
