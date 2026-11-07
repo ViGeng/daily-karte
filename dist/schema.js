@@ -1,9 +1,8 @@
-import { activityIcons } from './icons.js';
+import { isActivityIcon } from './icons.js';
 
 const cardFields = ['id', 'name', 'icon', 'color', 'duration'];
 const entryFields = ['id', 'cardId', 'name', 'icon', 'color', 'start', 'end', 'duration', 'note', 'estimated', 'createdAt'];
 const colors = new Set(['sage', 'amber', 'rose', 'blue', 'lavender']);
-const icons = new Set(activityIcons);
 
 function hasFields(value, fields) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -27,7 +26,7 @@ function validMillis(value) {
 
 function validSnapshot(value) {
   return typeof value.name === 'string' && value.name.trim().length > 0 && value.name.length <= 32
-    && icons.has(value.icon) && colors.has(value.color) && validDuration(value.duration);
+    && isActivityIcon(value.icon) && colors.has(value.color) && validDuration(value.duration);
 }
 
 function validDocuments(documents, validate) {

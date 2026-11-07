@@ -32,10 +32,10 @@ service cloud.firestore {
       return data.name is string
         && data.name.trim().size() > 0
         && data.name.size() <= 32
-        && data.icon in [
+        && (data.icon in [
           'sun', 'utensils', 'moon', 'coffee', 'book',
           'dumbbell', 'languages', 'users', 'leaf', 'sparkles'
-        ]
+        ] || (data.icon is string && data.icon.matches('^emoji:[^<>\\s\\x00-\\x1F\\x7F]{1,32}$')))
         && data.color in ['sage', 'amber', 'rose', 'blue', 'lavender']
         && validDuration(data.duration);
     }

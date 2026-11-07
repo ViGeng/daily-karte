@@ -29,6 +29,18 @@ const paths = {
 
 export const activityIcons = ['sun', 'utensils', 'moon', 'coffee', 'book', 'dumbbell', 'languages', 'users', 'leaf', 'sparkles'];
 
+export function isActivityIcon(value) {
+  return typeof value === 'string' && (activityIcons.includes(value)
+    || /^emoji:[^<>\s\u0000-\u001f\u007f]{1,32}$/u.test(value));
+}
+
+const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[character]));
+
 export function icon(name, className = '') {
-  return `<svg class="icon ${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.sparkles}</svg>`;
+  if (isActivityIcon(name) && name.startsWith('emoji:')) {
+    return `<span class="emoji-icon ${escapeHTML(className)}" aria-hidden="true">${escapeHTML(name.slice(6))}</span>`;
+  }
+  return `<svg class="icon ${escapeHTML(className)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.sparkles}</svg>`;
 }

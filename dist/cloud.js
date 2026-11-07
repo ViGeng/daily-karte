@@ -3,19 +3,19 @@ import { FIREBASE_PROJECT_ID } from './site-config.js';
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/13.2.0';
 const COLLECTIONS = ['cards', 'entries'];
 
-function cloudError(error, fallback = '云同步暂时不可用，请稍后重试。') {
+function cloudError(error, fallback = 'Cloud sync is unavailable. Please try again later.') {
   const code = typeof error?.code === 'string' ? error.code.split('/').at(-1) : '';
   const messages = {
-    'permission-denied': '云端拒绝了访问，请检查当前账号及数据库访问规则。',
-    unauthenticated: '登录已失效，请重新登录后再同步。',
-    'network-request-failed': '网络连接失败，请检查网络后重试。本机记录仍会保留。',
-    unavailable: '云端暂时无法连接，请检查网络后重试。本机记录仍会保留。',
-    'popup-blocked': '浏览器阻止了登录弹窗，请允许本站弹窗后重试。',
-    'popup-closed-by-user': '你已关闭登录窗口，可以稍后重新登录。',
-    'cancelled-popup-request': '登录窗口已取消，请完成已有窗口中的登录或重试。',
-    'operation-not-allowed': '项目尚未启用 Google 登录，请完成 Firebase 登录设置。',
-    'unauthorized-domain': '当前网站尚未获准登录，请在 Firebase 中检查授权域名。',
-    'resource-exhausted': '云端用量暂时达到限制，请稍后重试。本机记录仍会保留。',
+    'permission-denied': 'Access was denied. Please check your account and database access rules.',
+    unauthenticated: 'Your session expired. Please sign in again to sync.',
+    'network-request-failed': 'The network connection failed. Please try again. Your local records are retained.',
+    unavailable: 'The cloud is unavailable. Please check your connection. Your local records are retained.',
+    'popup-blocked': 'Your browser blocked the sign-in popup. Please allow popups for this site and try again.',
+    'popup-closed-by-user': 'You closed the sign-in window. You can try again later.',
+    'cancelled-popup-request': 'Sign-in was cancelled. Please finish signing in through the existing window or try again.',
+    'operation-not-allowed': 'Google sign-in is not enabled. Please complete the Firebase authentication setup.',
+    'unauthorized-domain': 'This site is not authorized for sign-in. Please check the authorized domains in Firebase.',
+    'resource-exhausted': 'The cloud usage limit was reached. Please try again later. Your local records are retained.',
   };
   return new Error(messages[code] || fallback);
 }
@@ -33,7 +33,7 @@ function validId(id) {
 
 export function buildChanges(changes) {
   if (!changes || typeof changes !== 'object' || Array.isArray(changes)) {
-    throw new Error('同步内容无效，请刷新后重试。');
+    throw new Error('The sync data is invalid. Please refresh and try again.');
   }
   const operations = [];
   const seen = new Set();
@@ -42,23 +42,23 @@ export function buildChanges(changes) {
     const upsert = group.upsert ?? [];
     const remove = group.remove ?? [];
     if (!Array.isArray(upsert) || !Array.isArray(remove)) {
-      throw new Error('同步内容无效，请刷新后重试。');
+      throw new Error('The sync data is invalid. Please refresh and try again.');
     }
     for (const [type, items] of [['set', upsert], ['delete', remove]]) {
       for (const value of items) {
         const id = type === 'set' ? value?.id : value;
         if (!validId(id) || (type === 'set' && (typeof value !== 'object' || Array.isArray(value)))) {
-          throw new Error('某条记录的标识无效，暂时无法同步。');
+          throw new Error('A record identifier is invalid. Sync could not complete.');
         }
         const key = `${collection}/${id}`;
-        if (seen.has(key)) throw new Error('同一条记录出现了重复修改，请刷新后重试。');
+        if (seen.has(key)) throw new Error('A record has duplicate changes. Please refresh and try again.');
         seen.add(key);
         const operation = { collection, id, type };
         if (type === 'set') {
           try {
             operation.data = globalThis.structuredClone(value);
           } catch {
-            throw new Error('某条记录的内容无效，暂时无法同步。');
+            throw new Error('A record contains invalid data. Sync could not complete.');
           }
         }
         operations.push(operation);
@@ -70,7 +70,7 @@ export function buildChanges(changes) {
 
 export function partitionWrites(operations, size = 400) {
   if (!Array.isArray(operations) || !Number.isInteger(size) || size < 1 || size > 400) {
-    throw new Error('同步批次无效。');
+    throw new Error('The sync batch is invalid.');
   }
   const batches = [];
   for (let index = 0; index < operations.length; index += size) batches.push(operations.slice(index, index + size));
@@ -100,9 +100,9 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
   const report = candidate => {
     if (!current(candidate)) return;
     if (candidate.readError || candidate.writeError) emit('error', candidate.readError || candidate.writeError);
-    else if (candidate.pending > 0) emit('saving', '正在保存到云端…');
-    else if (candidate.loaded) emit('ready', '已同步到云端。');
-    else emit('loading', '正在读取你的云端记录…');
+    else if (candidate.pending > 0) emit('saving', 'Your records are syncing…');
+    else if (candidate.loaded) emit('ready', 'Your records are synced.');
+    else emit('loading', 'Your cloud records are loading…');
   };
 
   authUnsubscribe = authApi.onAuthStateChanged(auth, user => {
@@ -112,7 +112,7 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
     session = null;
     if (!user) {
       onAuth(null);
-      emit('signed-out', '登录后可以在其他设备上查看你的记录。');
+      emit('signed-out', 'You can sign in to view your records on other devices.');
       return;
     }
     const candidate = {
@@ -141,7 +141,7 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
         report(candidate);
       }, error => {
         if (!current(candidate)) return;
-        candidate.readError = cloudError(error, '云端记录读取失败，请稍后重新登录。').message;
+        candidate.readError = cloudError(error, 'Cloud records could not load. Please sign in again later.').message;
         for (const unsubscribe of candidate.unsubscribers) unsubscribe();
         report(candidate);
       });
@@ -153,32 +153,32 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
     detach();
     session = null;
     onAuth(null);
-    emit('error', cloudError(error, '登录状态读取失败，请刷新后重试。').message);
+    emit('error', cloudError(error, 'Your sign-in status could not load. Please refresh and try again.').message);
   });
 
   const requireSession = () => {
-    if (stopped) throw new Error('云同步已停止，请刷新后重试。');
-    if (!session || !current(session)) throw new Error('请先登录，再同步记录。');
+    if (stopped) throw new Error('Cloud sync stopped. Please refresh and try again.');
+    if (!session || !current(session)) throw new Error('Please sign in before syncing records.');
     return session;
   };
 
   return {
     async signIn() {
-      if (stopped) throw new Error('云同步已停止，请刷新后重试。');
+      if (stopped) throw new Error('Cloud sync stopped. Please refresh and try again.');
       try {
         await authApi.signInWithPopup(auth, new authApi.GoogleAuthProvider());
       } catch (error) {
-        const readable = cloudError(error, '登录失败，请稍后重试。');
+        const readable = cloudError(error, 'Sign-in failed. Please try again later.');
         emit('error', readable.message);
         throw readable;
       }
     },
     async signOut() {
-      if (stopped) throw new Error('云同步已停止，请刷新后重试。');
+      if (stopped) throw new Error('Cloud sync stopped. Please refresh and try again.');
       try {
         await authApi.signOut(auth);
       } catch (error) {
-        const readable = cloudError(error, '退出登录失败，请稍后重试。');
+        const readable = cloudError(error, 'Sign-out failed. Please try again later.');
         emit('error', readable.message);
         throw readable;
       }
@@ -192,7 +192,7 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
       report(candidate);
       try {
         for (const operations of batches) {
-          if (!current(candidate)) throw new Error('账号已变化，本次同步已停止。');
+          if (!current(candidate)) throw new Error('The account changed. This sync stopped.');
           const batch = dbApi.writeBatch(db);
           for (const operation of operations) {
             const reference = dbApi.doc(db, 'users', candidate.uid, operation.collection, operation.id);
@@ -201,11 +201,11 @@ export function createCloudSession({ auth, db, authApi, dbApi }, callbacks = {})
           }
           await batch.commit();
         }
-        if (!current(candidate)) throw new Error('账号已变化，本次同步已停止。');
+        if (!current(candidate)) throw new Error('The account changed. This sync stopped.');
       } catch (error) {
         const readable = current(candidate)
-          ? cloudError(error, '部分记录尚未同步，请稍后重试。本机记录仍会保留。')
-          : new Error('账号已变化，本次同步已停止。');
+          ? cloudError(error, 'Some records have not synced. Please try again later. Your local records are retained.')
+          : new Error('The account changed. This sync stopped.');
         candidate.writeError = readable.message;
         throw readable;
       } finally {
@@ -229,27 +229,27 @@ export async function connectCloud(callbacks = {}, { projectId = FIREBASE_PROJEC
   const hostname = globalThis.location?.hostname ?? '';
   if (!hostname || hostname === 'localhost' || hostname.endsWith('.localhost')
     || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1') {
-    const message = '当前使用本机记录。账号登录需要配置 Firebase 项目，并使用对应的托管地址。';
+    const message = 'This is a local preview. Account sign-in requires a Firebase project and its hosting address.';
     onStatus({ kind: 'local', message });
     return unavailableAdapter(message);
   }
   if (projectId === '') {
-    const message = '当前使用本机预览。账号登录需要配置 Firebase 项目，你可以先使用游客模式记录。';
+    const message = 'This is a local preview. Account sign-in requires a Firebase project. You can try guest mode.';
     onStatus({ kind: 'local', message });
     return unavailableAdapter(message);
   }
   if (typeof projectId !== 'string' || !/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId)) {
-    const message = 'Firebase 项目标识无效，请检查站点配置。你可以先使用游客模式记录。';
+    const message = 'The Firebase project ID is invalid. Please check the site configuration. You can try guest mode.';
     onStatus({ kind: 'error', message });
     return unavailableAdapter(message);
   }
   const cloudHosts = new Set([`${projectId}.web.app`, `${projectId}.firebaseapp.com`]);
   if (!cloudHosts.has(hostname)) {
-    const message = '当前地址未启用云同步，请使用已配置项目的 Firebase 托管地址。';
+    const message = 'Cloud sync is unavailable at this address. Please use the configured Firebase hosting address.';
     onStatus({ kind: 'error', message });
     return unavailableAdapter(message);
   }
-  onStatus({ kind: 'connecting', message: '正在连接云同步…' });
+  onStatus({ kind: 'connecting', message: 'Cloud sync is connecting…' });
   const controller = new globalThis.AbortController();
   let timer;
   try {
@@ -273,7 +273,7 @@ export async function connectCloud(callbacks = {}, { projectId = FIREBASE_PROJEC
     const app = existing ?? appApi.initializeApp(config, 'daily-karte-cloud');
     return createCloudSession({ auth: authApi.getAuth(app), db: dbApi.getFirestore(app), authApi, dbApi }, callbacks);
   } catch {
-    const message = '云同步暂未连接，请检查 Firebase 网页配置、登录和数据库设置。本机记录仍可使用。';
+    const message = 'Cloud sync could not connect. Please check the Firebase web configuration, authentication, and database settings. You can still use guest mode.';
     onStatus({ kind: 'error', message });
     return unavailableAdapter(message);
   } finally {

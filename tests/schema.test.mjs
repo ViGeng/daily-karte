@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DEFAULT_CARDS, createEntry } from '../dist/model.js';
 import { emptyChanges } from '../dist/sync-state.js';
 import { isValidCard, isValidEntry, isValidState, isValidChanges } from '../dist/schema.js';
+import { icon } from '../dist/icons.js';
 
 const card = () => ({ ...DEFAULT_CARDS[0] });
 const entry = () => createEntry(DEFAULT_CARDS[0], { now: 10000000 });
@@ -111,4 +112,30 @@ test('Pending changes validate complete documents, safe removals, and unique ope
   assert.equal(isValidChanges({ ...changes, cards: { upsert: [card()], remove: [card().id] } }), false);
   assert.equal(isValidChanges({ ...changes, cards: { upsert: [], remove: ['same', 'same'] } }), false);
   assert.equal(isValidChanges({ ...changes, cards: { upsert: [], remove: ['path/item'] } }), false);
+});
+
+test('Emoji icons survive card, entry, cache, and pending-change validation.', () => {
+  for (const emoji of ['🎨', '🏃🏽‍♀️', '👨‍👩‍👧‍👦', '🇩🇪', '1️⃣', '☀️']) {
+    const custom = { ...card(), icon: `emoji:${emoji}` };
+    const record = createEntry(custom, { now: 10000000 });
+    assert.ok(isValidCard(custom), emoji);
+    assert.ok(isValidEntry(record), emoji);
+    assert.ok(isValidState({ cards: [custom], entries: [record] }), emoji);
+    const changes = emptyChanges();
+    changes.cards.upsert.push(custom);
+    changes.entries.upsert.push(record);
+    assert.ok(isValidChanges(changes), emoji);
+    assert.ok(icon(custom.icon).includes(emoji));
+    assert.equal(record.icon, custom.icon);
+  }
+  for (const value of ['emoji:', 'emoji:two words', 'emoji:🎨\n', 'emoji:<img>', 'emoji:' + '🎨'.repeat(33)]) {
+    assert.equal(isValidCard({ ...card(), icon: value }), false, value);
+  }
+  assert.ok(isValidCard({ ...card(), icon: 'emoji:' + '🎨'.repeat(32) }));
+});
+
+test('Custom icon rendering escapes text and treats malformed markup as an unknown icon.', () => {
+  assert.ok(icon('emoji:"&').includes('&quot;&amp;'));
+  assert.equal(icon('emoji:<img src=x>'), icon('unknown'));
+  assert.ok(!icon('emoji:<img src=x>').includes('<img'));
 });

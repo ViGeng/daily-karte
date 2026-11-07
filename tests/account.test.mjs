@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAccountStore } from '../dist/account.js';
-import { createEntry, DEFAULT_CARDS } from '../dist/model.js';
+import { createEntry, DEFAULT_CARDS, saveActivity, undoActivity } from '../dist/model.js';
 import { emptyChanges } from '../dist/sync-state.js';
 
 const empty = () => ({ cards: [], entries: [] });
@@ -230,7 +230,7 @@ test('A blocked browser storage getter still allows guest startup and reports fa
     store.persist();
     assert.equal(store.data.entries[0].id, entry.id);
     assert.equal(store.pending, true);
-    assert.match(store.warning, /无法保存离线副本/);
+    assert.match(store.warning, /cannot save an offline copy/);
   } finally {
     store?.stop();
     if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
@@ -263,7 +263,7 @@ test('Injected cache fields and malformed pending changes never enter account da
     assert.equal(h.store.ready, false);
     assert.deepEqual(h.store.data, empty());
     assert.equal(h.store.pending, false);
-    assert.match(h.store.warning, /原始数据不会被覆盖/);
+    assert.match(h.store.warning, /original data will not be overwritten/);
     assert.equal(storage.getItem('daily-karte.v1.user.alpha'), raw);
     assert.equal(h.writes.length, 0);
   }
@@ -277,14 +277,14 @@ test('A corrupt raw cache survives server updates, new writes, acknowledgements,
   h.callbacks.onAuth(user('alpha'));
   h.callbacks.onData(empty());
   assert.equal(h.store.ready, true);
-  assert.match(h.store.warning, /原始数据不会被覆盖/);
+  assert.match(h.store.warning, /original data will not be overwritten/);
   h.store.data.entries.push(createEntry(DEFAULT_CARDS[0], { now: 10000000 }));
   h.store.persist();
   assert.equal(h.writes.length, 1);
   h.writes[0].resolve();
   await tick();
   assert.equal(storage.getItem('daily-karte.v1.user.alpha'), raw);
-  assert.match(h.store.warning, /原始数据不会被覆盖/);
+  assert.match(h.store.warning, /original data will not be overwritten/);
   h.callbacks.onAuth(user('beta'));
   h.callbacks.onData(empty());
   assert.equal(h.store.warning, '');
@@ -292,7 +292,7 @@ test('A corrupt raw cache survives server updates, new writes, acknowledgements,
   h.callbacks.onAuth(user('alpha'));
   h.callbacks.onData(empty());
   assert.equal(storage.getItem('daily-karte.v1.user.alpha'), raw);
-  assert.match(h.store.warning, /原始数据不会被覆盖/);
+  assert.match(h.store.warning, /original data will not be overwritten/);
 });
 
 test('Manually repairing a protected cache permits writes only after it is read again.', async () => {
@@ -305,7 +305,7 @@ test('Manually repairing a protected cache permits writes only after it is read 
   storage.setItem('daily-karte.v1.user.alpha', repaired);
   h.callbacks.onData({ cards: DEFAULT_CARDS, entries: [] });
   assert.equal(storage.getItem('daily-karte.v1.user.alpha'), repaired);
-  assert.match(h.store.warning, /原始数据不会被覆盖/);
+  assert.match(h.store.warning, /original data will not be overwritten/);
   h.callbacks.onAuth(user('alpha'));
   assert.equal(h.store.warning, '');
   h.callbacks.onData({ cards: DEFAULT_CARDS, entries: [] });
@@ -343,10 +343,34 @@ test('Invalid guest imports and invalid local changes cannot overwrite a valid c
   const before = copy(h.store.data);
   const raw = h.storage.getItem('daily-karte.v1.user.alpha');
   h.guest.cards.push({ ...DEFAULT_CARDS[0], icon: '<svg onload="example()">' });
-  assert.throws(() => h.store.importGuest(), /格式无效/);
+  assert.throws(() => h.store.importGuest(), /invalid format/);
   assert.deepEqual(h.store.data, before);
   h.store.data.cards[0].color = '<img src=x>';
-  assert.throws(() => h.store.persist(), /格式无效/);
+  assert.throws(() => h.store.persist(), /format is invalid/);
   assert.equal(h.storage.getItem('daily-karte.v1.user.alpha'), raw);
   assert.equal(h.writes.length, 0);
+});
+
+test('Merged records sync removals and undo restores every original snapshot.', async () => {
+  const first = createEntry(DEFAULT_CARDS[5], { now: new Date(2026, 10, 4, 18).getTime() });
+  const second = createEntry(DEFAULT_CARDS[5], { now: first.end + 30 * 60000 });
+  const h = await harness();
+  h.callbacks.onAuth(user('alpha'));
+  h.callbacks.onData({ cards: DEFAULT_CARDS, entries: [first, second] });
+  const change = saveActivity(h.store.data.entries, { ...second, note: 'Updated.' });
+  h.store.data.entries = change.entries;
+  h.store.persist();
+  assert.equal(h.writes.length, 1);
+  assert.deepEqual(h.writes[0].changes.entries.remove, [first.id]);
+  assert.deepEqual(h.writes[0].changes.entries.upsert, [change.entry]);
+  h.writes[0].resolve();
+  await tick();
+  h.store.data.entries = undoActivity(h.store.data.entries, change);
+  h.store.persist();
+  assert.equal(h.writes.length, 2);
+  assert.deepEqual(h.writes[1].changes.entries.upsert, [first, second]);
+  assert.deepEqual(h.writes[1].changes.entries.remove, []);
+  h.writes[1].resolve();
+  await tick();
+  assert.equal(h.store.pending, false);
 });

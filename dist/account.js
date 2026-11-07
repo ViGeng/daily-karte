@@ -14,7 +14,7 @@ function defaultStorage() {
   }
   return {
     getItem: () => null,
-    setItem() { throw new Error('本机存储不可用。'); },
+    setItem() { throw new Error('Local storage is unavailable.'); },
   };
 }
 
@@ -30,10 +30,10 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
   let epoch = 0;
   let inFlight = null;
   let writesPaused = false;
-  let status = { kind: 'connecting', message: '正在准备云同步。' };
+  let status = { kind: 'connecting', message: 'Cloud sync is starting.' };
   let cacheWarning = '';
   const protectedCaches = new Set();
-  const protectedCacheWarning = '已有离线副本无法安全读取，原始数据不会被覆盖。请先备份并手动恢复该副本。新的更改无法保存到本机副本，请保持页面打开，直到同步完成。';
+  const protectedCacheWarning = 'The offline copy could not be read safely. The original data will not be overwritten. Please back it up and restore it manually. New changes cannot be cached. Please keep this page open until syncing completes.';
 
   function notify(next) {
     status = next;
@@ -50,7 +50,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       storage.setItem(`daily-karte.v1.user.${user.uid}`, JSON.stringify({ version: 1, ...data, pending }));
       cacheWarning = '';
     } catch {
-      cacheWarning = '这台设备无法保存离线副本，请保持页面打开，直到记录同步完成。';
+      cacheWarning = 'This device cannot save an offline copy. Please keep this page open until syncing completes.';
     }
   }
 
@@ -86,12 +86,12 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       pending = cached.pending;
       baseline = copy(data);
       ready = cached.exists;
-      notify({ kind: 'loading', message: ready ? '正在连接云端，你可以先在这台设备上记录。' : '正在读取你的云端记录。' });
+      notify({ kind: 'loading', message: ready ? 'The cloud is connecting. You can record on this device while you wait.' : 'Your cloud records are loading.' });
     } else {
       data = guest;
       baseline = copy(guest);
       pending = emptyChanges();
-      notify({ kind: 'signed-out', message: '登录后，你可以在不同设备上继续记录。' });
+      notify({ kind: 'signed-out', message: 'You can sign in to keep recording across devices.' });
     }
     onChange({ accountChanged: true });
   }
@@ -100,7 +100,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     if (!user) return;
     if (!isValidState(remote)) {
       remoteReady = false;
-      notify({ kind: 'error', message: '云端记录格式无法安全读取，已有记录未改变。请重试同步。' });
+      notify({ kind: 'error', message: 'Cloud records could not be read safely. Existing records are unchanged. Please retry syncing.' });
       return;
     }
     const merged = applyChanges(remote, pending);
@@ -109,7 +109,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     ready = true;
     remoteReady = true;
     cache();
-    notify({ kind: hasChanges(pending) ? 'saving' : 'ready', message: hasChanges(pending) ? '正在同步这台设备上的记录。' : '记录已与云端同步。' });
+    notify({ kind: hasChanges(pending) ? 'saving' : 'ready', message: hasChanges(pending) ? 'Your records on this device are syncing.' : 'Your records are synced.' });
     onChange({ accountChanged: false });
     void flush();
   }
@@ -120,7 +120,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     const sent = copy(pending);
     const marker = {};
     inFlight = marker;
-    notify({ kind: 'saving', message: '记录已留在这台设备，正在同步。' });
+    notify({ kind: 'saving', message: 'Your records are saved on this device and are syncing.' });
     let failed = false;
     try {
       await adapter.writeChanges(sent);
@@ -129,12 +129,12 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       cache();
     } catch {
       failed = true;
-      if (epoch === currentEpoch) notify({ kind: 'error', message: '部分记录尚未同步。它们仍保留在这台设备，你可以稍后重试。' });
+      if (epoch === currentEpoch) notify({ kind: 'error', message: 'Some records have not synced. They are retained on this device. You can retry later.' });
     } finally {
       if (epoch === currentEpoch && inFlight === marker) {
         inFlight = null;
         if (!failed && remoteReady) {
-          notify({ kind: hasChanges(pending) ? 'saving' : 'ready', message: hasChanges(pending) ? '正在继续同步。' : '记录已与云端同步。' });
+          notify({ kind: hasChanges(pending) ? 'saving' : 'ready', message: hasChanges(pending) ? 'Your records are still syncing.' : 'Your records are synced.' });
           if (hasChanges(pending)) void flush();
         }
       }
@@ -165,15 +165,15 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       await flush();
     },
     persist() {
-      if (!user || !ready) throw new Error('请等待云端记录载入完成。');
-      if (!isValidState(data)) throw new Error('记录格式无效，尚未保存或同步。');
+      if (!user || !ready) throw new Error('Please wait for your cloud records to load.');
+      if (!isValidState(data)) throw new Error('The record format is invalid. Your changes have not been saved or synced.');
       pending = mergeChanges(pending, diffState(baseline, data));
       baseline = copy(data);
       cache();
       void flush();
     },
     async signIn() {
-      if (!adapter) throw new Error('登录正在准备中，请稍后再试。');
+      if (!adapter) throw new Error('Sign-in is starting. Please try again shortly.');
       await adapter.signIn();
     },
     async signOut() {
@@ -188,8 +188,8 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       } else await flush();
     },
     importGuest() {
-      if (!user || !remoteReady) throw new Error('请先登录并等待云端记录载入。');
-      if (!isValidState(guest)) throw new Error('这台设备的记录格式无效，尚未导入。');
+      if (!user || !remoteReady) throw new Error('Please sign in and wait for your cloud records to load.');
+      if (!isValidState(guest)) throw new Error('The records on this device have an invalid format. They have not been imported.');
       Object.assign(data, mergeGuestState(data, guest));
       this.persist();
       onChange({ accountChanged: false });

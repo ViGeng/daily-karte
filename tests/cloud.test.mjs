@@ -84,8 +84,8 @@ test('Local use does not request Firebase configuration and remains callable.', 
       const statuses = [];
       const adapter = await connectCloud({ onStatus: status => statuses.push(status) }, { projectId });
       assert.equal(statuses.at(-1).kind, 'local');
-      await assert.rejects(adapter.signIn(), /本机记录/);
-      await assert.rejects(adapter.writeChanges({}), /本机记录/);
+      await assert.rejects(adapter.signIn(), /local preview/);
+      await assert.rejects(adapter.writeChanges({}), /local preview/);
       adapter.stop();
     });
   }
@@ -94,11 +94,11 @@ test('Local use does not request Firebase configuration and remains callable.', 
 test('An unconfigured site stays local and cannot connect to any cloud project.', async () => {
   await withBrowser(`${projectId}.web.app`, () => assert.fail('An unconfigured site must not fetch.'), async () => {
     const statuses = [];
-    const adapter = await connectCloud({ onStatus: status => statuses.push(status) });
+    const adapter = await connectCloud({ onStatus: status => statuses.push(status) }, { projectId: '' });
     assert.equal(statuses.at(-1).kind, 'local');
-    assert.match(statuses.at(-1).message, /账号登录需要配置/);
-    await assert.rejects(adapter.signIn(), /账号登录需要配置/);
-    await assert.rejects(adapter.writeChanges({}), /账号登录需要配置/);
+    assert.match(statuses.at(-1).message, /Account sign-in requires/);
+    await assert.rejects(adapter.signIn(), /Account sign-in requires/);
+    await assert.rejects(adapter.writeChanges({}), /Account sign-in requires/);
   });
 });
 
@@ -108,7 +108,7 @@ test('Invalid project identifiers never request Firebase configuration.', async 
       const statuses = [];
       const adapter = await connectCloud({ onStatus: status => statuses.push(status) }, { projectId: invalidId });
       assert.equal(statuses.at(-1).kind, 'error');
-      await assert.rejects(adapter.signIn(), /项目标识无效/);
+      await assert.rejects(adapter.signIn(), /project ID is invalid/);
     });
   }
 });
@@ -119,7 +119,7 @@ test('Unsupported hosts and other project hosts never load Firebase configuratio
       const statuses = [];
       const adapter = await connectCloud({ onStatus: status => statuses.push(status) }, { projectId });
       assert.equal(statuses.at(-1).kind, 'error');
-      await assert.rejects(adapter.signIn(), /当前地址/);
+      await assert.rejects(adapter.signIn(), /this address/);
     });
   }
 });
@@ -133,7 +133,7 @@ test('Missing configuration and a different project fail without blocking local 
       const statuses = [];
       const adapter = await connectCloud({ onStatus: status => statuses.push(status) }, { projectId });
       assert.equal(statuses.at(-1).kind, 'error');
-      await assert.rejects(adapter.signIn(), /本机记录仍可使用/);
+      await assert.rejects(adapter.signIn(), /still use guest mode/);
     });
   }
 });
@@ -177,7 +177,7 @@ test('A failed read exposes a useful message without treating the database as em
   fixture.snapshot('first', 'entries');
   assert.equal(fixture.data.length, 0);
   assert.equal(fixture.statuses.at(-1).kind, 'error');
-  assert.match(fixture.statuses.at(-1).message, /访问规则/);
+  assert.match(fixture.statuses.at(-1).message, /access rules/);
   assert.doesNotMatch(fixture.statuses.at(-1).message, /Internal/);
 });
 
@@ -203,7 +203,7 @@ test('An account switch stops remaining batches and cannot redirect writes into 
   assert.ok(fixture.commits[0].operations.every(operation => operation.path.startsWith('users/first/entries/')));
   fixture.ready('second');
   fixture.commits[0].resolve();
-  await assert.rejects(write, /账号已变化/);
+  await assert.rejects(write, /account changed/);
   assert.equal(fixture.commits.length, 1);
   assert.equal(fixture.statuses.at(-1).kind, 'ready');
 });
@@ -213,10 +213,10 @@ test('All write input is checked before any partial batch can be sent.', async (
   fixture.ready();
   const entries = Array.from({ length: 400 }, (_, index) => ({ id: `entry-${index}` }));
   entries.push({ id: 'invalid/path' });
-  await assert.rejects(fixture.adapter.writeChanges({ entries: { upsert: entries } }), /标识无效/);
+  await assert.rejects(fixture.adapter.writeChanges({ entries: { upsert: entries } }), /identifier is invalid/);
   assert.equal(fixture.commits.length, 0);
   fixture.login(null);
-  await assert.rejects(fixture.adapter.writeChanges({}), /先登录/);
+  await assert.rejects(fixture.adapter.writeChanges({}), /sign in/);
 });
 
 test('Write failures remain errors and do not reveal SDK details.', async () => {
@@ -224,7 +224,7 @@ test('Write failures remain errors and do not reveal SDK details.', async () => 
   fixture.ready();
   const write = fixture.adapter.writeChanges({ entries: { remove: ['entry'] } });
   fixture.commits[0].reject({ code: 'firestore/permission-denied', message: 'Internal details must not escape.' });
-  await assert.rejects(write, /访问规则/);
+  await assert.rejects(write, /access rules/);
   assert.equal(fixture.statuses.at(-1).kind, 'error');
   assert.doesNotMatch(fixture.statuses.at(-1).message, /Internal/);
 });
@@ -232,7 +232,7 @@ test('Write failures remain errors and do not reveal SDK details.', async () => 
 test('Popup blocking produces a useful error without attempting a redirect.', async () => {
   const fixture = harness();
   fixture.authApi.signInWithPopup = async () => { throw { code: 'auth/popup-blocked' }; };
-  await assert.rejects(fixture.adapter.signIn(), /允许本站弹窗/);
+  await assert.rejects(fixture.adapter.signIn(), /allow popups/);
   assert.equal(fixture.statuses.at(-1).kind, 'error');
 });
 
@@ -242,7 +242,7 @@ test('Batch planning preserves record snapshots and keeps each batch within its 
   record.note.text = 'Changed later';
   assert.equal(operations[0].data.note.text, 'Original');
   assert.deepEqual(operations[1], { collection: 'entries', id: 'old', type: 'delete' });
-  assert.throws(() => buildChanges({ cards: { upsert: [{ id: 'gym' }], remove: ['gym'] } }), /重复修改/);
+  assert.throws(() => buildChanges({ cards: { upsert: [{ id: 'gym' }], remove: ['gym'] } }), /duplicate changes/);
   assert.deepEqual(partitionWrites(Array.from({ length: 801 }), 400).map(batch => batch.length), [400, 400, 1]);
-  assert.throws(() => partitionWrites([], 401), /批次无效/);
+  assert.throws(() => partitionWrites([], 401), /batch is invalid/);
 });

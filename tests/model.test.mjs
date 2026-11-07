@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_CARDS,
+  DURATION_OPTIONS,
   createEntry,
   dateKey,
   formatDuration,
@@ -10,7 +11,10 @@ import {
   resolveEndTime,
   shiftDay,
   summarizeDay,
+  saveActivity,
+  undoActivity,
 } from '../dist/model.js';
+import { isValidEntry } from '../dist/schema.js';
 
 const gym = DEFAULT_CARDS.find(card => card.id === 'gym');
 const coffee = DEFAULT_CARDS.find(card => card.id === 'coffee');
@@ -40,7 +44,7 @@ test('Editing a card does not change an earlier entry snapshot.', () => {
   const entry = createEntry(card, { now: localTime(4, 18) });
   card.name = '户外运动';
   card.duration = 45;
-  assert.equal(entry.name, '健身');
+  assert.equal(entry.name, 'Exercise');
   assert.equal(entry.duration, 60);
   assert.equal(createEntry(card, { now: localTime(4, 19) }).duration, 45);
 });
@@ -53,7 +57,7 @@ test('Backfilled and cross-midnight activities belong to their ending day.', () 
   assert.equal(listEntriesForDay([entry], '2026-11-04').length, 1);
 });
 
-test('Overlapping entries retain their own duration and are not merged.', () => {
+test('Summaries preserve existing records until a record is explicitly saved.', () => {
   const first = createEntry(gym, { now: localTime(4, 18) });
   const second = createEntry(gym, { now: localTime(4, 18, 30) });
   const summary = summarizeDay([first, second], '2026-11-04');
@@ -81,11 +85,13 @@ test('Local dates and day navigation work across month and daylight-saving bound
 });
 
 test('Duration labels distinguish unknown duration from zero minutes.', () => {
-  assert.equal(formatDuration(null), '按次记录');
-  assert.equal(formatDuration(0), '0 分钟');
-  assert.equal(formatDuration(20), '20 分钟');
-  assert.equal(formatDuration(60), '1 小时');
-  assert.equal(formatDuration(90), '1 小时 30 分钟');
+  assert.equal(formatDuration(null), 'No duration');
+  assert.equal(formatDuration(0), '0 min');
+  assert.equal(formatDuration(20), '20 min');
+  assert.equal(formatDuration(60), '1 hr');
+  assert.equal(formatDuration(90), '1 hr 30 min');
+  assert.equal(formatDuration(120), '2 hr');
+  assert.deepEqual(DURATION_OPTIONS, [15, 30, 60, 90, 120]);
 });
 
 test('Editing an unchanged time preserves its seconds and milliseconds.', () => {
@@ -120,4 +126,89 @@ test('Berlin clock changes preserve the second repeated time and reject missing 
     assert.equal(resolveEndTime('2026-03-29', '03:30'), Date.parse('2026-03-29T03:30:00+02:00'));
   `], { env: { TZ: 'Europe/Berlin' }, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr || result.error?.message);
+});
+
+test('Saving overlapping activities merges their span without double-counting.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18), note: 'First session.' });
+  const second = createEntry(gym, { now: localTime(4, 18, 30), note: 'Second session.' });
+  const result = saveActivity([first], second);
+  assert.equal(result.merged, true);
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entry.id, second.id);
+  assert.equal(result.entry.start, localTime(4, 17));
+  assert.equal(result.entry.end, second.end);
+  assert.equal(result.entry.duration, 90);
+  assert.equal(result.entry.note, 'First session.\nSecond session.');
+  assert.ok(isValidEntry(result.entry));
+  assert.equal(first.duration, 60);
+  assert.equal(second.duration, 60);
+  assert.deepEqual(undoActivity(result.entries, result), [first]);
+});
+
+test('Merging includes a gap of five minutes and keeps longer gaps separate.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18) });
+  const close = createEntry(gym, { now: localTime(4, 18, 35), duration: 30 });
+  const far = createEntry(gym, { now: localTime(4, 18, 36), duration: 30 });
+  assert.equal(saveActivity([first], close).entry.duration, 95);
+  assert.equal(saveActivity([first], far).merged, false);
+  assert.equal(saveActivity([first], far).entries.length, 2);
+});
+
+test('Backfilling a bridge merges both chronological neighbors and undo restores them.', () => {
+  const early = createEntry(gym, { now: localTime(4, 10), duration: 30, note: 'Early.' });
+  const late = createEntry(gym, { now: localTime(4, 11), duration: 30, note: 'Late.' });
+  const bridge = createEntry(gym, { now: localTime(4, 10, 30), duration: 30, note: 'Middle.' });
+  const result = saveActivity([late, early], bridge);
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entry.duration, 90);
+  assert.equal(result.entry.note, 'Early.\nMiddle.\nLate.');
+  assert.deepEqual(undoActivity(result.entries, result), [late, early]);
+});
+
+test('Intervening activities, unknown durations, other days, and changed snapshots prevent merging.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18) });
+  const second = createEntry(gym, { now: localTime(4, 18, 30) });
+  const intervening = createEntry(coffee, { now: localTime(4, 18, 15) });
+  assert.equal(saveActivity([first, intervening], second).merged, false);
+  assert.equal(saveActivity([first], createEntry(gym, { now: second.end, duration: null })).merged, false);
+  assert.equal(saveActivity([createEntry(coffee, { now: first.end })], createEntry(coffee, { now: second.end })).merged, false);
+  for (const change of [{ name: 'New name' }, { icon: 'emoji:🏃' }, { color: 'blue' }, { cardId: 'other-card' }]) {
+    assert.equal(saveActivity([first], { ...second, ...change }).merged, false);
+  }
+  const midnight = createEntry(gym, { now: localTime(5, 0, 30) });
+  const previous = createEntry(gym, { now: localTime(4, 23, 50) });
+  assert.equal(saveActivity([previous], midnight).merged, false);
+});
+
+test('Merging preserves long notes and duration limits by keeping incompatible records separate.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18), note: 'a'.repeat(300) });
+  const second = createEntry(gym, { now: localTime(4, 18, 30), note: 'b'.repeat(300) });
+  const result = saveActivity([first], second);
+  assert.equal(result.merged, false);
+  assert.deepEqual(result.entries, [first, second]);
+  const fullDay = createEntry(gym, { now: localTime(4, 18), duration: 1440 });
+  assert.equal(saveActivity([fullDay], second).merged, false);
+  const duplicate = saveActivity([first], { ...second, note: first.note });
+  assert.equal(duplicate.entry.note, first.note);
+});
+
+test('Sub-minute recording offsets still produce valid whole-minute estimates.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18) + 12_345 });
+  const second = createEntry(gym, { now: localTime(4, 18, 30) + 23_456 });
+  const result = saveActivity([first], second);
+  assert.equal(result.entry.duration, 91);
+  assert.ok(result.entry.start <= first.start);
+  assert.ok(isValidEntry(result.entry));
+});
+
+test('Undo restores edited and merged records while preserving unrelated changes.', () => {
+  const first = createEntry(gym, { now: localTime(4, 18) });
+  const second = createEntry(gym, { now: localTime(4, 20) });
+  const edited = { ...second, end: localTime(4, 18, 30), start: localTime(4, 17, 30) };
+  const result = saveActivity([first, second], edited);
+  const unrelated = createEntry(coffee, { now: localTime(4, 21) });
+  assert.deepEqual(undoActivity([...result.entries, unrelated], result), [unrelated, first, second]);
+  assert.throws(() => undoActivity([{ ...result.entry, note: 'Changed remotely.' }], result), /changed after saving/);
+  assert.throws(() => undoActivity([], result), /changed after saving/);
+  assert.throws(() => undoActivity([...result.entries, first], result), /changed after saving/);
 });

@@ -2,11 +2,23 @@
 
 daily-karte is a lightweight activity-card journal for everyday life. You can record what you just finished with one tap, adjust an approximate time, and look back at the main moments of your day.
 
-The interface currently uses Simplified Chinese. This is an early prototype, and Google sign-in and cloud synchronization still need verification against a real Firebase deployment.
+The interface uses English and follows your system's light or dark appearance. This is an early prototype, and Google sign-in and cloud synchronization still need verification against a real Firebase deployment.
 
 The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and share it for permitted noncommercial purposes while retaining the required notices. Commercial use requires separate permission. This is source-available software rather than an OSI-approved open-source project.
 
-![The DailyKarte sign-in screen](docs/login.jpg)
+## Roadmap
+
+- [x] The app automatically merges consecutive activities from the same card when they overlap or have a gap of up to five minutes.
+- [x] Duration presets offer 15, 30, 60, 90, and 120 minutes.
+- [x] The simpler interface follows the system's light or dark appearance.
+- [x] Activity cards support custom emoji or symbol icons.
+- [x] The default interface, cards, and status messages use English.
+
+The roadmap implementation is complete. Tests, lint, and JavaScript syntax checks pass. Rendered mobile and dark-mode checks remain unverified because browser automation was unavailable during this iteration.
+
+When you save a record, merging considers its chronological neighbors on the same ending date. Records must share their card ID, name, icon, and color. An intervening activity or a record without duration keeps them separate. The merged estimate spans the earliest start through the latest end, including any short gap, and rounds up to a whole minute. Notes are retained. Records remain separate if merging would exceed the 24-hour duration limit or the 500-character note limit. You can undo a merge to restore the original records.
+
+Existing records are not merged when you open the app. Existing card names, notes, and historical icons stay as you entered them.
 
 ## What you can do
 
@@ -14,6 +26,7 @@ The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE
 - You can estimate an activity's duration or record it without a duration.
 - You can backfill a past activity and add a short note.
 - You can edit your cards without rewriting historical records.
+- You can choose a built-in icon or enter a custom emoji for each card.
 - You can review a daily timeline and approximate activity totals.
 - You can try an isolated guest session without creating an account.
 - You can configure your own Firebase project for Google sign-in and cloud storage.
@@ -31,7 +44,7 @@ cd daily-karte
 python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 ```
 
-You can then open [the local app](http://127.0.0.1:4173) and choose **以游客身份试用** at the bottom of the sign-in page.
+You can then open [the local app](http://127.0.0.1:4173) and choose **Try as a guest** on the sign-in page.
 
 Guest activities stay in memory. Leaving the guest session or refreshing the page resets them. They are not uploaded or added to an account.
 
@@ -50,6 +63,8 @@ Cloud connectivity is disabled in the public source by default. No author-owned 
 The browser obtains its Web configuration from Firebase Hosting at runtime. You do not need to put service-account keys or sign-in tokens in the repository.
 
 [FIREBASE_SETUP.md](FIREBASE_SETUP.md) provides the full setup and deployment steps. The current connector supports your project's default `web.app` and `firebaseapp.com` domains.
+
+If you upgrade an existing deployment, deploy the updated `firestore.rules` along with the app so the database accepts custom icons. The rules use Firebase's documented [string matching API](https://firebase.google.com/docs/reference/rules/rules.String#matches). The updated rules still need emulator or live deployment verification.
 
 ## Data and privacy
 
@@ -75,7 +90,9 @@ npm test
 npm run check:release
 ```
 
-The automated tests cover the time model, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. Cloud adapter tests use SDK substitutes and do not connect to a production database.
+The automated tests cover the time model, activity merging and undo, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. Cloud adapter tests use SDK substitutes and do not connect to a production database.
+
+The release check expects generic, unconfigured Firebase files. A checkout with local Firebase bindings can fail this check until you prepare a clean source release.
 
 The npm lockfile pins the development dependencies. A `minimatch` override selects the patched version for [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249). The lint and test checks verify that the override works with this project.
 
