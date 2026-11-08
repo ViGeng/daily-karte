@@ -99,6 +99,7 @@ The npm lockfile pins the development dependencies. A `minimatch` override selec
 ## Project layout
 
 - `dist/` contains the browser app and its local SVG icons.
+- `dist/favicon.svg` contains the editable site icon. The matching ICO and Apple touch icon support browser tabs and mobile home screens.
 - `tests/` contains the dependency-free Node.js tests.
 - `firestore.rules` defines account-scoped access and document validation.
 - `firebase.json` defines static hosting and database rule deployment.

@@ -8,7 +8,8 @@ const allowed = new Set([
   'CHANGELOG.md', 'CONTRIBUTING.md', 'FIREBASE_SETUP.md', 'LICENSE', 'README.md',
   'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'eslint.config.mjs', 'firebase.json',
   'firestore.indexes.json', 'firestore.rules', 'package-lock.json', 'package.json',
-  'dist/account.js', 'dist/app.js', 'dist/cloud.js', 'dist/icons.js',
+  'dist/account.js', 'dist/app.js', 'dist/apple-touch-icon.png', 'dist/cloud.js',
+  'dist/favicon.ico', 'dist/favicon.svg', 'dist/icons.js',
   'dist/index.html', 'dist/model.js', 'dist/schema.js', 'dist/site-config.js',
   'dist/styles.css', 'dist/sync-state.js', 'docs/login.jpg',
   'scripts/check-release.mjs', 'tests/account.test.mjs', 'tests/cloud.test.mjs',
@@ -48,7 +49,7 @@ async function inspect(directory, relative = '') {
       continue;
     }
     found.add(name);
-    if (name === 'docs/login.jpg') continue;
+    if (['docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png'].includes(name)) continue;
     const source = await readFile(absolute, 'utf8');
     for (const [index, line] of source.split('\n').entries()) {
       for (const [label, pattern] of patterns) {
