@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A lightweight activity-card journal for everyday life.",
   "scripts": {
-    "start": "python3 -m http.server 4173 --bind 127.0.0.1 --directory dist",
+    "start": "python3 scripts/serve.py",
     "test": "node --test tests/*.test.mjs",
     "check": "node --check dist/app.js && node --check dist/model.js && node --check dist/icons.js && node --check dist/account.js && node --check dist/cloud.js && node --check dist/sync-state.js && node --check dist/site-config.js && node --check dist/schema.js",
     "lint": "eslint dist tests scripts eslint.config.mjs",

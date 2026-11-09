@@ -12,7 +12,7 @@ const allowed = new Set([
   'dist/favicon.ico', 'dist/favicon.svg', 'dist/icons.js',
   'dist/index.html', 'dist/model.js', 'dist/schema.js', 'dist/site-config.js',
   'dist/styles.css', 'dist/sync-state.js', 'docs/login.jpg',
-  'scripts/check-release.mjs', 'tests/account.test.mjs', 'tests/cloud.test.mjs',
+  'scripts/check-release.mjs', 'scripts/serve.py', 'tests/app.test.mjs', 'tests/account.test.mjs', 'tests/cloud.test.mjs',
   'tests/model.test.mjs', 'tests/schema.test.mjs', 'tests/sync-state.test.mjs',
 ]);
 const skipped = new Set(['.git', 'node_modules']);

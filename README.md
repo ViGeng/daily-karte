@@ -23,16 +23,30 @@ Existing records are not merged when you open the app. Existing card names, note
 ## What you can do
 
 - You can record common activities with reusable cards.
+- You can fit more cards on screen with compact layouts that place icons beside activity names and durations.
+- The daily view keeps the date and summary compact and omits repeated introductory text so cards appear sooner.
 - You can estimate an activity's duration or record it without a duration.
 - You can backfill a past activity and add a short note.
 - You can edit your cards without rewriting historical records.
 - You can choose a built-in icon or enter a custom emoji for each card.
 - You can review a daily timeline and approximate activity totals.
+- You can review a GitHub-style yearly heatmap whose color intensity represents estimated daily activity duration.
+- You can view a compact Monday-to-Sunday grid of 30-minute time blocks directly below the heatmap.
+- You can compare weekly activity durations with a donut chart and horizontal bars below the block view.
+- You can select a heatmap square or weekly block to review its week and open that day's totals and editable timeline below.
 - You can try an isolated guest session without creating an account.
 - You can configure your own Firebase project for Google sign-in and cloud storage.
 - You can export the current records as a JSON backup.
 
 Activities can overlap, and gaps remain unknown. The duration summary covers the activities you recorded and does not represent a complete accounting of your day.
+
+The Review tab always shows the yearly heatmap above the weekly activity blocks. The heatmap scrolls horizontally on narrow screens and has its own year controls. Its green intensity levels represent up to one hour, over one to three hours, over three to six hours, and over six hours of estimated recorded activity per day. Days with records but no estimated duration have an outlined square.
+
+The weekly grid places 48 half-hour clock slots in rows and all seven days in columns. Each block shows the activity with the greatest recorded overlap in that slot. Separate records with the same historical card details combine their coverage, while overlapping portions count only once toward that activity's coverage. Ties prefer the latest-ending record, then its identifier. Empty time stays blank, and records without duration appear as dots rather than occupying a full half-hour. Cross-midnight activities occupy the slots they overlap on each local date. Skipped clock times are unavailable, and repeated clock times share one labeled slot.
+
+Consecutive slots with the same historical activity appear as one taller block with a single label. Gaps and changed activity details keep blocks separate, and point markers retain their positions within merged blocks. The week automatically fits the earliest and latest occupied times across all seven days, with padding rounded out to whole hours. Point events also influence this range. Show full day reveals all 24 hours, and Fit activities restores the fitted range. Empty weeks show the full day. Shorter ranges use taller slots for readability. These display changes do not merge or edit saved records.
+
+The charts summarize estimated durations for records ending in the selected week. The donut shows each activity's share, and the horizontal bars compare durations. Records without duration remain listed but do not receive a duration share. The heatmap and weekly totals also use ending dates. Blocks show a compact approximation of when activities occurred and do not change the original records or chart totals. Week controls navigate earlier weeks or return to this week. Selecting a square or block keeps both overviews visible and opens day details below. Future dates cannot be selected for daily review.
 
 ## Try it locally
 
@@ -41,10 +55,12 @@ You need Python 3 to serve the static files. You do not need to install JavaScri
 ```sh
 git clone https://github.com/ViGeng/daily-karte.git
 cd daily-karte
-python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
+python3 scripts/serve.py
 ```
 
 You can then open [the local app](http://127.0.0.1:4173) and choose **Try as a guest** on the sign-in page.
+
+The preview server disables browser caching so edits do not mix old and new JavaScript modules. You can also start it with `npm start`. If a tab was already open during an update, reload it before testing.
 
 Guest activities stay in memory. Leaving the guest session or refreshing the page resets them. They are not uploaded or added to an account.
 
@@ -90,7 +106,7 @@ npm test
 npm run check:release
 ```
 
-The automated tests cover the time model, activity merging and undo, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. Cloud adapter tests use SDK substitutes and do not connect to a production database.
+The automated tests cover app startup and guest navigation, the combined Review layout and chart rendering, majority-overlap assignment to half-hour blocks, the time model, activity merging and undo, weekly aggregation across date and daylight-saving boundaries, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. Cloud adapter tests use SDK substitutes and do not connect to a production database.
 
 The release check expects generic, unconfigured Firebase files. A checkout with local Firebase bindings can fail this check until you prepare a clean source release.
 

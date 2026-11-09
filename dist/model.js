@@ -108,6 +108,140 @@ export function listEntriesForDay(entries, key) {
   return entries.filter(entry => dateKey(entry.end) === key).sort((a, b) => b.end - a.end);
 }
 
+export function weekStart(key) {
+  const day = new Date(`${shiftDay(key, 0)}T12:00:00`).getDay();
+  return shiftDay(key, -((day + 6) % 7));
+}
+
+export function activityDays(entries, firstDay, lastDay) {
+  shiftDay(firstDay, 0);
+  shiftDay(lastDay, 0);
+  if (firstDay > lastDay) throw new RangeError('The date range is invalid.');
+  const days = new Map();
+  for (let day = firstDay; day <= lastDay; day = shiftDay(day, 1)) {
+    days.set(day, { day, count: 0, totalMinutes: 0 });
+  }
+  for (const entry of entries) {
+    const day = days.get(dateKey(entry.end));
+    if (!day) continue;
+    day.count += 1;
+    day.totalMinutes += entry.duration ?? 0;
+  }
+  return [...days.values()];
+}
+
+export function summarizeWeek(entries, key) {
+  const firstDay = weekStart(key);
+  const days = activityDays(entries, firstDay, shiftDay(firstDay, 6));
+  const groups = new Map();
+  const indexes = new Map(days.map((day, index) => [day.day, index]));
+  for (const entry of [...entries].sort((a, b) => b.end - a.end)) {
+    const index = indexes.get(dateKey(entry.end));
+    if (index === undefined) continue;
+    const identity = JSON.stringify([entry.cardId, entry.name, entry.icon, entry.color]);
+    const group = groups.get(identity) ?? {
+      name: entry.name, icon: entry.icon, color: entry.color,
+      days: days.map(() => ({ count: 0, minutes: 0, unknownCount: 0 })),
+      count: 0, minutes: 0,
+    };
+    group.days[index].count += 1;
+    group.days[index].minutes += entry.duration ?? 0;
+    group.days[index].unknownCount += Number(entry.duration === null);
+    group.count += 1;
+    group.minutes += entry.duration ?? 0;
+    groups.set(identity, group);
+  }
+  return {
+    days,
+    count: days.reduce((sum, day) => sum + day.count, 0),
+    totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
+    byActivity: [...groups.values()].sort((a, b) => b.minutes - a.minutes || b.count - a.count || a.name.localeCompare(b.name)),
+    blocks: weeklyTimeBlocks(entries, days),
+  };
+}
+
+export function weekBlockLayout(blocks, fullDay = false) {
+  const occupied = blocks.flatMap(column => column.slots.flatMap((slot, index) => slot.activity || slot.points.length ? [index] : []));
+  const startSlot = fullDay || !occupied.length ? 0 : Math.max(0, Math.floor((Math.min(...occupied) - 1) / 2) * 2);
+  const endSlot = fullDay || !occupied.length ? 48 : Math.min(48, Math.ceil((Math.max(...occupied) + 2) / 2) * 2);
+  const columns = blocks.map(({ day, slots }) => {
+    const runs = [];
+    for (let index = startSlot; index < endSlot; index += 1) {
+      const slot = slots[index];
+      const activity = slot.activity?.entry ?? null;
+      const previous = runs.at(-1);
+      if (activity && previous?.activity && ['cardId', 'name', 'icon', 'color'].every(field => activity[field] === previous.activity[field])) {
+        previous.endSlot = index + 1;
+        previous.slots.push(slot);
+      } else {
+        runs.push({ startSlot: index, endSlot: index + 1, activity, slots: [slot] });
+      }
+    }
+    return { day, runs };
+  });
+  return { startSlot, endSlot, columns };
+}
+
+function weeklyTimeBlocks(entries, days) {
+  const ordered = [...entries].sort((a, b) => b.end - a.end || a.id.localeCompare(b.id));
+  return days.map(({ day }) => {
+    const start = new Date(`${day}T00:00:00`).getTime();
+    const end = new Date(`${shiftDay(day, 1)}T00:00:00`).getTime();
+    const slots = Array.from({ length: 48 }, (_, index) => ({
+      startMinute: index * 30, intervals: [], points: [], groups: new Map(),
+    }));
+    // Repeated local half-hours share a slot, while skipped local half-hours stay unavailable.
+    for (let time = start; time < end; time += 30 * 60_000) {
+      const clock = new Date(time);
+      const index = clock.getHours() * 2 + Math.floor(clock.getMinutes() / 30);
+      slots[index].intervals.push([time, Math.min(end, time + 30 * 60_000)]);
+    }
+    for (const entry of ordered) {
+      if (entry.duration === null) {
+        if (dateKey(entry.end) === day) {
+          const clock = new Date(entry.end);
+          slots[clock.getHours() * 2 + Math.floor(clock.getMinutes() / 30)].points.push(entry);
+        }
+        continue;
+      }
+      if (entry.start >= end || entry.end <= start) continue;
+      const identity = JSON.stringify([entry.cardId, entry.name, entry.icon, entry.color]);
+      for (const slot of slots) {
+        for (const [from, to] of slot.intervals) {
+          const overlapStart = Math.max(entry.start, from);
+          const overlapEnd = Math.min(entry.end, to);
+          if (overlapStart >= overlapEnd) continue;
+          const group = slot.groups.get(identity) ?? { entry, intervals: [] };
+          group.intervals.push([overlapStart, overlapEnd]);
+          slot.groups.set(identity, group);
+        }
+      }
+    }
+    return {
+      day,
+      slots: slots.map(slot => {
+        const activities = [...slot.groups.values()].map(group => {
+          const intervals = group.intervals.sort((a, b) => a[0] - b[0]);
+          let covered = 0;
+          let previousEnd = -Infinity;
+          for (const [from, to] of intervals) {
+            covered += Math.max(0, to - Math.max(from, previousEnd));
+            previousEnd = Math.max(previousEnd, to);
+          }
+          return { entry: group.entry, minutes: covered / 60_000 };
+        }).sort((a, b) => b.minutes - a.minutes || b.entry.end - a.entry.end || a.entry.id.localeCompare(b.entry.id));
+        return {
+          startMinute: slot.startMinute,
+          availableMinutes: slot.intervals.reduce((sum, [from, to]) => sum + (to - from) / 60_000, 0),
+          activity: activities[0] ?? null,
+          activities,
+          points: slot.points,
+        };
+      }),
+    };
+  });
+}
+
 export function saveActivity(entries, incoming) {
   const ordered = [...entries.filter(entry => entry.id !== incoming.id), incoming]
     .sort((a, b) => a.end - b.end || a.createdAt - b.createdAt || a.id.localeCompare(b.id));
