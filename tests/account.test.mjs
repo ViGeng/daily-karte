@@ -76,6 +76,56 @@ test('A server update and an older write acknowledgement preserve a newer local 
   assert.equal(h.store.status.kind, 'ready');
 });
 
+test('A completed write stays visible while server snapshots catch up.', async () => {
+  const h = await harness();
+  h.callbacks.onAuth(user('alpha'));
+  const remote = { cards: DEFAULT_CARDS.map(card => ({ ...card })), entries: [] };
+  h.callbacks.onData(remote);
+  const entry = createEntry(DEFAULT_CARDS[0], { now: 10000000 });
+  h.store.data.entries.push(entry);
+  h.store.persist();
+  h.writes[0].resolve();
+  await tick();
+  h.callbacks.onData(remote);
+  assert.deepEqual(h.store.data.entries, [entry]);
+  assert.equal(h.store.pending, false);
+  assert.equal(h.writes.length, 1);
+  h.callbacks.onData({ ...remote, entries: [entry] });
+  h.callbacks.onData(remote);
+  assert.deepEqual(h.store.data.entries, []);
+});
+
+test('A snapshot arriving before write completion allows subsequent remote edits.', async () => {
+  const h = await harness();
+  h.callbacks.onAuth(user('alpha'));
+  h.callbacks.onData(empty());
+  const entry = createEntry(DEFAULT_CARDS[0], { now: 10000000 });
+  h.store.data.entries.push(entry);
+  h.store.persist();
+  h.callbacks.onData({ cards: [], entries: [entry] });
+  h.writes[0].resolve();
+  await tick();
+  h.callbacks.onData(empty());
+  assert.deepEqual(h.store.data.entries, []);
+});
+
+test('Completed removals stay removed through stale snapshots and account switches clear them.', async () => {
+  const h = await harness();
+  const entry = createEntry(DEFAULT_CARDS[0], { now: 10000000 });
+  const remote = { cards: [], entries: [entry] };
+  h.callbacks.onAuth(user('alpha'));
+  h.callbacks.onData(remote);
+  h.store.data.entries = [];
+  h.store.persist();
+  h.writes[0].resolve();
+  await tick();
+  h.callbacks.onData(remote);
+  assert.deepEqual(h.store.data.entries, []);
+  h.callbacks.onAuth(user('beta'));
+  h.callbacks.onData(remote);
+  assert.deepEqual(h.store.data.entries, [entry]);
+});
+
 test('Switching accounts while a write completes cannot copy data into the next account.', async () => {
   const h = await harness();
   h.callbacks.onAuth(user('alpha'));

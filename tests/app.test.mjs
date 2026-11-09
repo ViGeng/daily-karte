@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey } from '../dist/model.js';
+import { registerHooks } from 'node:module';
+import { dateKey, DEFAULT_CARDS } from '../dist/model.js';
 
-test('Review keeps the heatmap above weekly blocks during navigation and day inspection.', async () => {
+test('Review preserves its layout and signed-in card clicks update the timeline immediately.', async () => {
+  let cloud;
+  const writes = [];
+  const cached = new Map();
   const nodes = new Map();
   const handlers = new Map();
   const element = selector => {
@@ -37,8 +41,24 @@ test('Review keeps the heatmap above weekly blocks during navigation and day ins
     window: { addEventListener() {}, scrollTo() {} },
     requestAnimationFrame(callback) { callback(); },
     CSS: { escape: value => value },
+    localStorage: { getItem: key => cached.get(key) ?? null, setItem: (key, value) => cached.set(key, value) },
+    __dailyKarteTestCloud(callbacks) {
+      cloud = callbacks;
+      return {
+        writeChanges: changes => new Promise(resolve => writes.push({ changes, resolve })),
+        stop() {},
+      };
+    },
   };
   const previous = new Map(Object.keys(globals).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
+  const hooks = registerHooks({
+    load(url, context, nextLoad) {
+      if (url === new URL('../dist/cloud.js', import.meta.url).href) {
+        return { format: 'module', shortCircuit: true, source: 'export async function connectCloud(callbacks) { return globalThis.__dailyKarteTestCloud(callbacks); }' };
+      }
+      return nextLoad(url, context);
+    },
+  });
   try {
     for (const [name, value] of Object.entries(globals)) {
       Object.defineProperty(globalThis, name, { value, configurable: true, writable: true });
@@ -122,7 +142,35 @@ test('Review keeps the heatmap above weekly blocks during navigation and day ins
     element('#demo-toggle').dispatch('click');
     assert.equal(element('#workspace').hidden, true);
     assert.equal(element('#login-screen').hidden, false);
+    cloud.onAuth({ uid: 'timeline-test', displayName: 'Timeline test' });
+    const remote = { cards: DEFAULT_CARDS.map(card => ({ ...card })), entries: [] };
+    cloud.onData(remote);
+    click({ record: 'breakfast' });
+    const assertRecorded = () => {
+      assert.match(element('#view-content').innerHTML, /class="entry-title">Breakfast<\/h3>/);
+      assert.equal((element('#view-content').innerHTML.match(/class="timeline-item"/g) || []).length, 1);
+      assert.match(element('#summary-strip').innerHTML, /class="summary-value ">1<\/p>/);
+      assert.match(element('#summary-strip').innerHTML, /About 20 min/);
+    };
+    assertRecorded();
+    assert.equal(writes.length, 1);
+    cloud.onData(remote);
+    assertRecorded();
+    writes[0].resolve();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    cloud.onData(remote);
+    assertRecorded();
+    const saved = writes[0].changes.entries.upsert[0];
+    cloud.onData({ ...remote, entries: [saved] });
+    assertRecorded();
+    click({ toast: 'undo' });
+    assert.doesNotMatch(element('#view-content').innerHTML, /class="timeline-item"/);
+    writes[1].resolve();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    cloud.onData({ ...remote, entries: [saved] });
+    assert.doesNotMatch(element('#view-content').innerHTML, /class="timeline-item"/);
   } finally {
+    hooks.deregister();
     for (const [name, descriptor] of previous) {
       if (descriptor) Object.defineProperty(globalThis, name, descriptor);
       else delete globalThis[name];

@@ -24,6 +24,8 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
   let data = guest;
   let baseline = copy(guest);
   let pending = emptyChanges();
+  let confirmed = emptyChanges();
+  let lastRemote = emptyState();
   let adapter = null;
   let ready = false;
   let remoteReady = false;
@@ -79,6 +81,8 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     ready = false;
     remoteReady = false;
     user = nextUser;
+    confirmed = emptyChanges();
+    lastRemote = emptyState();
     cacheWarning = '';
     if (user) {
       const cached = readCache(user.uid);
@@ -103,7 +107,10 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       notify({ kind: 'error', message: 'Cloud records could not be read safely. Existing records are unchanged. Please retry syncing.' });
       return;
     }
-    const merged = applyChanges(remote, pending);
+    // Completed writes remain visible until the listeners report their values.
+    lastRemote = copy(remote);
+    confirmed = diffState(remote, applyChanges(remote, confirmed));
+    const merged = applyChanges(applyChanges(remote, confirmed), pending);
     baseline = copy(merged);
     Object.assign(data, merged);
     ready = true;
@@ -125,6 +132,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     try {
       await adapter.writeChanges(sent);
       if (epoch !== currentEpoch) return;
+      confirmed = diffState(lastRemote, applyChanges(lastRemote, mergeChanges(confirmed, sent)));
       pending = acknowledgeChanges(pending, sent);
       cache();
     } catch {

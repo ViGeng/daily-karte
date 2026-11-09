@@ -97,3 +97,19 @@ Consecutive matching activity slots now share one block and one label. Gaps and 
 These changes affect presentation only. The original records and duration charts remain unchanged. Keyboard navigation now moves between merged blocks and finds overlapping blocks in adjacent days. README documentation and asset revisions were updated.
 
 All 79 tests, ESLint, JavaScript syntax checks, and the whitespace diff check passed. New checks cover merging across records, gaps, historical snapshots, point markers, fitted boundaries, full-day coverage, and preservation of source data. The app regression test verifies a single label per merged block, table coverage, range toggling, chart totals, and keyboard navigation. Browser visual verification remains incomplete because the browser access host is unavailable. These changes have not been deployed.
+
+## Immediate timeline updates during sync · 2026-11-09T14:55:21+01:00
+
+The plan was to keep newly recorded activities visible in Your day without requiring a refresh.
+
+A regression test reproduced a race in which a completed cloud write cleared its pending changes before collection listeners received the updated records. An older snapshot could then remove the newly saved activity from local state. The account store now retains completed changes until snapshots contain their values. Later remote edits take effect after confirmation, and switching accounts clears the retained changes. The app and account-module revision parameters were updated so browsers request the fix.
+
+All 82 tests, ESLint, JavaScript syntax checks, and the whitespace diff check passed. The signed-in app test verifies immediate timeline and summary updates before a cloud write completes, retention through stale snapshots, and immediate undo. Account tests cover both snapshot and write-completion orderings, retained removals, and account isolation. These tests use a DOM substitute and a simulated cloud connection. Live Firebase verification remains pending, and these changes have not been deployed.
+
+## Combined header and visible version · 2026-11-09T14:58:31+01:00
+
+The plan was to combine the highlighted view and account rows and display the app version in small, muted text.
+
+The account strip now sits inside the top header beside the current view and a gray v0.1.0 label. The header shares one border and one row when space allows. Account actions remain available, sync messages can wrap, and narrow screens allow the header contents to wrap. The stylesheet revision was updated so browsers request the new layout, and the README describes the compact header.
+
+All 82 tests, ESLint, JavaScript syntax checks, and the whitespace diff check passed. A structural HTML check confirmed that the account strip appears once inside the header and that the displayed version matches package.json. Browser visual verification remains pending because the local preview server is not running. These changes have not been deployed.

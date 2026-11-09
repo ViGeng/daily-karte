@@ -11,8 +11,8 @@
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
-  <link rel="stylesheet" href="styles.css?v=20261109-merged">
-  <script type="module" src="app.js?v=20261109-merged"></script>
+  <link rel="stylesheet" href="styles.css?v=20261109-header">
+  <script type="module" src="app.js?v=20261109-timeline"></script>
 </head>
 <body>
   <a class="skip-link" href="#login-title">Skip to content</a>
@@ -34,11 +34,10 @@
     </aside>
     <div class="main-shell">
       <header class="topbar">
-        <a class="brand mobile-brand" href="#today">DailyKarte</a>
-        <strong id="breadcrumb">Your day</strong>
+        <div class="header-title"><a class="brand mobile-brand" href="#today">DailyKarte</a><strong id="breadcrumb">Your day</strong><span class="app-version" aria-label="App version 0.1.0">v0.1.0</span></div>
+        <section class="account-strip" id="account-strip" aria-label="Account and sync status" aria-live="polite"></section>
         <button class="text-button" id="demo-toggle">Try a sample day</button>
       </header>
-      <section class="account-strip" id="account-strip" aria-label="Account and sync status" aria-live="polite"></section>
       <main id="main" tabindex="-1">
         <div class="page-heading"><h1 id="page-title">Your day</h1><p class="page-description" id="page-description">Record what you just finished.</p></div>
         <section class="date-toolbar" aria-label="Record date"><div class="date-selector"><button class="icon-button" id="prev-day" aria-label="Previous day"></button><button class="selected-date" id="selected-date"></button><button class="icon-button" id="next-day" aria-label="Next day"></button><input id="date-picker" type="date" aria-label="Choose a date" class="date-picker-input"></div><button class="today-link" id="go-today">Today</button></section>

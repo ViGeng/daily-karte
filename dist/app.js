@@ -1,6 +1,6 @@
 import { DEFAULT_CARDS, DURATION_OPTIONS, createId, dateKey, shiftDay, formatDuration, createEntry, listEntriesForDay, summarizeDay, summarizeWeek, activityDays, weekStart, weekBlockLayout, resolveEndTime, saveActivity, undoActivity } from './model.js?v=20261109-merged';
 import { icon, activityIcons, isActivityIcon } from './icons.js';
-import { createAccountStore } from './account.js';
+import { createAccountStore } from './account.js?v=20261109-timeline';
 import { isValidState } from './schema.js';
 
 const $ = (selector) => document.querySelector(selector);

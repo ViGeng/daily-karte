@@ -23,8 +23,10 @@ Existing records are not merged when you open the app. Existing card names, note
 ## What you can do
 
 - You can record common activities with reusable cards.
+- New activities appear in the daily timeline immediately and stay visible while cloud synchronization catches up.
 - You can fit more cards on screen with compact layouts that place icons beside activity names and durations.
 - The daily view keeps the date and summary compact and omits repeated introductory text so cards appear sooner.
+- The header combines the current view, account, sync status, and account actions in one row when space allows, with the app version in small, muted text.
 - You can estimate an activity's duration or record it without a duration.
 - You can backfill a past activity and add a short note.
 - You can edit your cards without rewriting historical records.
