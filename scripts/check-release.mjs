@@ -12,6 +12,8 @@ const allowed = new Set([
   'dist/favicon.ico', 'dist/favicon.svg', 'dist/icons.js',
   'dist/index.html', 'dist/model.js', 'dist/schema.js', 'dist/site-config.js',
   'dist/styles.css', 'dist/sync-state.js', 'docs/login.jpg',
+  'dist/pwa.js', 'dist/sw.js', 'dist/manifest.webmanifest', 'dist/icon-192.png', 'dist/icon-512.png',
+  'tests/pwa.test.mjs', 'tests/sw.test.mjs',
   'scripts/check-release.mjs', 'scripts/serve.py', 'tests/app.test.mjs', 'tests/account.test.mjs', 'tests/cloud.test.mjs',
   'tests/model.test.mjs', 'tests/schema.test.mjs', 'tests/sync-state.test.mjs',
 ]);
@@ -49,7 +51,7 @@ async function inspect(directory, relative = '') {
       continue;
     }
     found.add(name);
-    if (['docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png'].includes(name)) continue;
+    if (['docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png', 'dist/icon-192.png', 'dist/icon-512.png'].includes(name)) continue;
     const source = await readFile(absolute, 'utf8');
     for (const [index, line] of source.split('\n').entries()) {
       for (const [label, pattern] of patterns) {

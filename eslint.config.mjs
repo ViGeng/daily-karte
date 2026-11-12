@@ -8,6 +8,7 @@ export default [{
     globals: Object.fromEntries([
       'window', 'document', 'location', 'history', 'localStorage', 'CSS',
       'requestAnimationFrame', 'setTimeout', 'clearTimeout', 'URL', 'Blob', 'Event',
+      'self', 'caches', 'Request', 'Response', 'fetch',
     ].map(name => [name, 'readonly'])),
   },
   rules: {

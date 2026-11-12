@@ -132,10 +132,13 @@ export function activityDays(entries, firstDay, lastDay) {
 
 export function summarizeWeek(entries, key) {
   const firstDay = weekStart(key);
-  const days = activityDays(entries, firstDay, shiftDay(firstDay, 6));
+  const firstTime = new Date(`${firstDay}T00:00:00`).getTime();
+  const lastTime = new Date(`${shiftDay(firstDay, 7)}T00:00:00`).getTime();
+  const weekEntries = entries.filter(entry => entry.end >= firstTime && entry.end < lastTime);
+  const days = activityDays(weekEntries, firstDay, shiftDay(firstDay, 6));
   const groups = new Map();
   const indexes = new Map(days.map((day, index) => [day.day, index]));
-  for (const entry of [...entries].sort((a, b) => b.end - a.end)) {
+  for (const entry of [...weekEntries].sort((a, b) => b.end - a.end)) {
     const index = indexes.get(dateKey(entry.end));
     if (index === undefined) continue;
     const identity = JSON.stringify([entry.cardId, entry.name, entry.icon, entry.color]);
@@ -156,7 +159,9 @@ export function summarizeWeek(entries, key) {
     count: days.reduce((sum, day) => sum + day.count, 0),
     totalMinutes: days.reduce((sum, day) => sum + day.totalMinutes, 0),
     byActivity: [...groups.values()].sort((a, b) => b.minutes - a.minutes || b.count - a.count || a.name.localeCompare(b.name)),
-    blocks: weeklyTimeBlocks(entries, days),
+    blocks: weeklyTimeBlocks(entries.filter(entry => entry.duration === null
+      ? entry.end >= firstTime && entry.end < lastTime
+      : entry.start < lastTime && entry.end > firstTime), days),
   };
 }
 

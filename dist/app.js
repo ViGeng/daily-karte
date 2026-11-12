@@ -1,7 +1,8 @@
-import { DEFAULT_CARDS, DURATION_OPTIONS, createId, dateKey, shiftDay, formatDuration, createEntry, listEntriesForDay, summarizeDay, summarizeWeek, activityDays, weekStart, weekBlockLayout, resolveEndTime, saveActivity, undoActivity } from './model.js?v=20261109-merged';
+import { DEFAULT_CARDS, DURATION_OPTIONS, createId, dateKey, shiftDay, formatDuration, createEntry, listEntriesForDay, summarizeDay, summarizeWeek, activityDays, weekStart, weekBlockLayout, resolveEndTime, saveActivity, undoActivity } from './model.js';
 import { icon, activityIcons, isActivityIcon } from './icons.js';
-import { createAccountStore } from './account.js?v=20261109-timeline';
+import { createAccountStore } from './account.js';
 import { isValidState } from './schema.js';
+import { startAppExperience } from './pwa.js';
 
 const $ = (selector) => document.querySelector(selector);
 const STORAGE_KEY = 'daily-karte.v1';
@@ -76,8 +77,21 @@ let toastAction = null;
 let editorState = null;
 let lastFocus = null;
 const state = () => demo ? demoState : account.data;
-const formatTime = value => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(value);
-const dayLabel = key => new Intl.DateTimeFormat('en-GB', { month: 'short', day: 'numeric', weekday: 'short' }).format(new Date(`${key}T12:00:00`));
+const timeFormatter = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const dayFormatter = new Intl.DateTimeFormat('en-GB', { month: 'short', day: 'numeric', weekday: 'short' });
+const monthFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
+const weekdayFormatter = new Intl.DateTimeFormat('en', { weekday: 'short' });
+const rangeFormatters = [false, true].map(includeYear => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}) }));
+const formatTime = value => timeFormatter.format(value);
+const dayLabel = key => dayFormatter.format(new Date(`${key}T12:00:00`));
+const renderedMarkup = new WeakMap();
+function setMarkup(selector, markup) {
+  const element = $(selector);
+  if (renderedMarkup.get(element) === markup) return false;
+  element.innerHTML = markup;
+  renderedMarkup.set(element, markup);
+  return true;
+}
 const timeInput = value => `${String(new Date(value).getHours()).padStart(2, '0')}:${String(new Date(value).getMinutes()).padStart(2, '0')}`;
 const durationLabel = value => value === null ? 'No duration' : `About ${formatDuration(value)}`;
 function summaryDuration(minutes) {
@@ -178,9 +192,9 @@ function navMarkup() {
 
 function render() {
   if (!renderAccess()) {
-    $('#view-content').replaceChildren();
-    $('#summary-strip').replaceChildren();
-    $('#account-strip').replaceChildren();
+    setMarkup('#view-content', '');
+    setMarkup('#summary-strip', '');
+    setMarkup('#account-strip', '');
     return;
   }
   if (account.user && !demo && !personalLoaded) {
@@ -190,8 +204,9 @@ function render() {
   const previousFocus = focusSelector(document.activeElement);
   const summary = summarizeDay(state().entries, selectedDay);
   const currentView = VIEWS.find(item => item.id === view);
-  $('#desktop-nav').innerHTML = navMarkup();
-  $('#mobile-nav').innerHTML = navMarkup();
+  const navigation = navMarkup();
+  setMarkup('#desktop-nav', navigation);
+  setMarkup('#mobile-nav', navigation);
   $('#breadcrumb').textContent = currentView.name;
   $('#demo-toggle').textContent = demo ? (account.user ? 'Return to your day' : 'Leave guest session') : 'Try a sample day';
   $('#demo-toggle').hidden = Boolean(account.user && !demo);
@@ -207,20 +222,20 @@ function render() {
   const [title, description] = headings[view];
   $('#page-title').textContent = title;
   $('#page-description').textContent = description;
-  $('#selected-date').innerHTML = `${icon('calendar')}${dayLabel(selectedDay)}${selectedDay === dateKey() ? '<small>Today</small>' : ''}`;
+  setMarkup('#selected-date', `${icon('calendar')}${dayLabel(selectedDay)}${selectedDay === dateKey() ? '<small>Today</small>' : ''}`);
   $('#date-picker').value = selectedDay;
   $('#date-picker').max = dateKey();
   $('#next-day').disabled = selectedDay >= dateKey();
   $('#go-today').hidden = selectedDay === dateKey();
-  $('#summary-strip').innerHTML = [
+  setMarkup('#summary-strip', [
     ['timeline', 'Records', String(summary.count), ''],
     ['clock', 'Duration', summaryDuration(summary.totalMinutes), 'duration'],
-  ].map(([symbol, label, value, className]) => `<div class="summary-item"><span class="summary-icon">${icon(symbol)}</span><div><p class="summary-label">${label}</p><p class="summary-value ${className}">${value}</p></div></div>`).join('');
+  ].map(([symbol, label, value, className]) => `<div class="summary-item"><span class="summary-icon">${icon(symbol)}</span><div><p class="summary-label">${label}</p><p class="summary-value ${className}">${value}</p></div></div>`).join(''));
   const warning = !demo && !account.user && storageMessage ? `<p class="storage-warning" role="alert">${storageMessage}</p>` : '';
-  $('#view-content').innerHTML = warning + (view === 'today' ? renderToday() : view === 'cards' ? renderCards() : renderInsights(summary));
+  const contentChanged = setMarkup('#view-content', warning + (view === 'today' ? renderToday() : view === 'cards' ? renderCards() : renderInsights(summary)));
   const heatmap = $('.heatmap-scroll');
   const selectedCell = heatmap?.querySelector('[tabindex="0"]');
-  if (selectedCell) heatmap.scrollLeft = Math.max(0, selectedCell.offsetLeft - heatmap.offsetLeft - heatmap.clientWidth / 2);
+  if (selectedCell && contentChanged) heatmap.scrollLeft = Math.max(0, selectedCell.offsetLeft - heatmap.offsetLeft - heatmap.clientWidth / 2);
   renderAccount();
   if (previousFocus && !$('#editor').open && !restoreFocus(previousFocus)) $('#main').focus({ preventScroll: true });
 }
@@ -247,10 +262,11 @@ function renderAccount() {
   const { status, user } = account;
   const local = status.kind === 'local';
   const label = demo ? 'Guest session' : local ? 'Your records are on this device' : user ? (user.displayName || user.email || 'Your account') : 'Your records can travel with you';
-  const message = demo ? 'Sample records reset when you leave or refresh.' : (account.warning || (status.kind === 'ready' ? 'Synced' : status.message));
+  const offline = globalThis.navigator?.onLine === false;
+  const message = demo ? 'Sample records reset when you leave or refresh.' : (account.warning || (offline ? 'You are offline. Changes will sync when you reconnect.' : status.kind === 'ready' ? 'Synced' : status.message));
   const signInAvailable = !local && !user && status.kind !== 'connecting';
-  strip.innerHTML = `<div class="account-copy">${icon(user ? 'shield' : 'leaf')}<div><strong>${escapeHTML(label)}</strong><p>${escapeHTML(message)}</p></div></div><div class="account-actions">${signInAvailable ? '<button data-action="sign-in">Continue with Google</button>' : ''}${user && !demo && personal.entries.length && account.connected ? '<button data-action="import-guest">Import local records</button>' : ''}${user && status.kind === 'error' ? '<button data-action="retry-sync">Retry sync</button>' : ''}${user ? '<button data-action="sign-out">Sign out</button>' : ''}</div>`;
-  strip.dataset.status = status.kind;
+  setMarkup('#account-strip', `<div class="account-copy">${icon(user ? 'shield' : 'leaf')}<div><strong>${escapeHTML(label)}</strong><p>${escapeHTML(message)}</p></div></div><div class="account-actions">${signInAvailable ? '<button data-action="sign-in">Continue with Google</button>' : ''}${user && !demo && personal.entries.length && account.connected ? '<button data-action="import-guest">Import local records</button>' : ''}${user && status.kind === 'error' ? '<button data-action="retry-sync">Retry sync</button>' : ''}${user ? '<button data-action="sign-out">Sign out</button>' : ''}</div>`);
+  strip.dataset.status = offline ? 'offline' : status.kind;
   const loading = Boolean(user && !account.ready && !demo);
   $('#view-content').inert = loading;
   $('#summary-strip').setAttribute('aria-busy', String(loading));
@@ -327,7 +343,7 @@ function renderInsights(summary) {
   const week = summarizeWeek(state().entries, selectedDay);
   const start = weekStart(selectedDay);
   const end = shiftDay(start, 6);
-  const rangeDate = (key, includeYear) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}) }).format(new Date(`${key}T12:00:00`));
+  const rangeDate = (key, includeYear) => rangeFormatters[Number(Boolean(includeYear))].format(new Date(`${key}T12:00:00`));
   const label = `${rangeDate(start, start.slice(0, 4) !== end.slice(0, 4))} – ${rangeDate(end, true)}`;
   const nextDisabled = start >= weekStart(dateKey());
   return `${renderHeatmap(reviewYear)}<section class="review-week" aria-label="Weekly activity overview"><div class="review-period"><button class="icon-button" data-review-shift="-1" aria-label="Previous week">${icon('left')}</button><h2>${label}</h2><button class="icon-button" data-review-shift="1" aria-label="Next week" ${nextDisabled ? 'disabled' : ''}>${icon('right')}</button><button class="subtle-button" data-action="review-now">This week</button></div>${renderWeek(week)}</section>${renderDistribution(week)}${reviewDayExpanded ? `<section class="review-day" aria-label="Selected day details"><div class="section-heading"><h2>${dayLabel(selectedDay)}, ${selectedDay.slice(0, 4)}</h2><button class="subtle-button" data-action="close-review-day">Close details</button></div>${renderDayInsights(summary)}</section>` : ''}<button class="export-button" data-action="export">${icon('download')} Export ${demo ? 'sample' : 'your'} records</button>`;
@@ -341,7 +357,7 @@ function renderHeatmap(year) {
   const focusDay = selectedDay.startsWith(`${year}-`) ? selectedDay : firstDay;
   const count = days.filter(day => day.day <= dateKey()).reduce((sum, day) => sum + day.count, 0);
   const minutes = days.filter(day => day.day <= dateKey()).reduce((sum, day) => sum + day.totalMinutes, 0);
-  const monthLabels = days.flatMap((day, index) => day.day.endsWith('-01') ? [`<span class="heatmap-month" style="grid-column:${Math.floor((offset + index) / 7) + 2};grid-row:1">${new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(`${day.day}T12:00:00`))}</span>`] : []).join('');
+  const monthLabels = days.flatMap((day, index) => day.day.endsWith('-01') ? [`<span class="heatmap-month" style="grid-column:${Math.floor((offset + index) / 7) + 2};grid-row:1">${monthFormatter.format(new Date(`${day.day}T12:00:00`))}</span>`] : []).join('');
   const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => `<span class="heatmap-weekday" style="grid-column:1;grid-row:${index + 2}" aria-hidden="true">${index % 2 === 0 ? day : ''}</span>`).join('');
   const cells = days.map((day, index) => {
     const future = day.day > dateKey();
@@ -354,7 +370,7 @@ function renderHeatmap(year) {
 
 function renderWeek(summary) {
   const layout = weekBlockLayout(summary.blocks, reviewFullDay);
-  const headers = summary.days.map(day => `<th scope="col"><button class="week-date ${day.day === dateKey() ? 'is-today' : ''}" data-day="${day.day}" aria-pressed="${day.day === selectedDay}" aria-label="Review ${dayLabel(day.day)}" ${day.day > dateKey() ? 'disabled' : ''}><span>${new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(`${day.day}T12:00:00`))}</span><strong>${Number(day.day.slice(-2))}</strong></button></th>`).join('');
+  const headers = summary.days.map(day => `<th scope="col"><button class="week-date ${day.day === dateKey() ? 'is-today' : ''}" data-day="${day.day}" aria-pressed="${day.day === selectedDay}" aria-label="Review ${dayLabel(day.day)}" ${day.day > dateKey() ? 'disabled' : ''}><span>${weekdayFormatter.format(new Date(`${day.day}T12:00:00`))}</span><strong>${Number(day.day.slice(-2))}</strong></button></th>`).join('');
   const selectedColumn = summary.blocks.find(column => column.day === selectedDay);
   const firstOccupied = selectedColumn?.slots.findIndex(slot => slot.activity || slot.points.length) ?? -1;
   const focusSlot = firstOccupied < 0 ? layout.startSlot : firstOccupied;
@@ -734,6 +750,13 @@ window.addEventListener('storage', event => {
   }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#editor').open) render(); });
-window.addEventListener('online', () => { void account.retry(); });
+window.addEventListener('offline', renderAccount);
+window.addEventListener('online', () => {
+  renderAccount();
+  void account.retry().catch(() => showToast('Sync could not reconnect. Your local records are retained.'));
+});
 render();
 void account.start().catch(() => { showToast('Cloud sync is unavailable. You can still use guest mode.'); });
+startAppExperience({
+  reloadBlocker: () => $('#editor').open ? 'Please finish editing before updating.' : signInBusy ? 'Please finish signing in before updating.' : demo ? 'Please leave the guest session before updating. Guest records reset on reload.' : account.pending ? 'Please wait for your records to sync before updating.' : '',
+});

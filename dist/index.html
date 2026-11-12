@@ -7,15 +7,24 @@
   <meta name="theme-color" content="#f6f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#171b19" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Record what you just finished with one tap. DailyKarte is a simple activity-card journal.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DailyKarte">
   <title>DailyKarte · Your day, recorded</title>
   <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="favicon.svg" type="image/svg+xml" sizes="any">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
-  <link rel="stylesheet" href="styles.css?v=20261109-header">
-  <script type="module" src="app.js?v=20261109-timeline"></script>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=20261112-pwa">
+  <script type="module" src="app.js?v=20261112-pwa"></script>
 </head>
 <body>
   <a class="skip-link" href="#login-title">Skip to content</a>
+  <aside class="app-tools" aria-label="App installation and connection">
+    <p id="connection-status" role="status" hidden></p>
+    <button class="subtle-button" id="install-app" hidden>Add to home screen</button>
+    <p id="install-help" role="status" hidden></p>
+    <div class="update-notice" id="update-notice" hidden><p id="update-status" role="status">A new version is ready.</p><button class="subtle-button" id="update-app">Update app</button></div>
+  </aside>
   <main class="login-screen" id="login-screen" aria-labelledby="login-title">
     <header class="login-header"><a class="brand" href="#login" aria-label="DailyKarte home"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>DailyKarte</a></header>
     <section class="login-panel">

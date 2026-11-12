@@ -14,7 +14,7 @@ The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE
 - [x] Activity cards support custom emoji or symbol icons.
 - [x] The default interface, cards, and status messages use English.
 
-The roadmap implementation is complete. Tests, lint, and JavaScript syntax checks pass. Rendered mobile and dark-mode checks remain unverified because browser automation was unavailable during this iteration.
+The roadmap implementation is complete. Automated tests, lint, and JavaScript syntax checks pass. Local Chrome checks cover mobile and desktop widths, touch recording and undo, dark appearance, editor scrolling, offline reload, and the app-update flow. Real-device installation and live Firebase behavior still need verification.
 
 When you save a record, merging considers its chronological neighbors on the same ending date. Records must share their card ID, name, icon, and color. An intervening activity or a record without duration keeps them separate. The merged estimate spans the earliest start through the latest end, including any short gap, and rounds up to a whole minute. Notes are retained. Records remain separate if merging would exceed the 24-hour duration limit or the 500-character note limit. You can undo a merge to restore the original records.
 
@@ -50,6 +50,24 @@ Consecutive slots with the same historical activity appear as one taller block w
 
 The charts summarize estimated durations for records ending in the selected week. The donut shows each activity's share, and the horizontal bars compare durations. Records without duration remain listed but do not receive a duration share. The heatmap and weekly totals also use ending dates. Blocks show a compact approximation of when activities occurred and do not change the original records or chart totals. Week controls navigate earlier weeks or return to this week. Selecting a square or block keeps both overviews visible and opens day details below. Future dates cannot be selected for daily review.
 
+## Install and use offline
+
+DailyKarte now includes a PWA manifest, standalone launch settings, and 192-pixel and 512-pixel home-screen icons. Installation requires HTTPS or a localhost preview, and the available installation controls depend on the browser. The app's **Add to home screen** button opens the browser's installation prompt when available. On iPhone and iPad, it explains how to use Safari's Share menu to add the app to the home screen. Installed windows hide the installation button. [MDN describes browser installation requirements](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable).
+
+After a connected visit finishes caching the app files, you can reopen the interface offline and use guest mode. An already open signed-in workspace can continue using its existing local record cache and sync queue. Google sign-in and cloud startup still need a connection, so reopening offline does not guarantee access to a signed-in workspace. Guest records remain temporary and reset when you leave or refresh.
+
+The app displays a connection notice while offline and retries account synchronization when the connection returns. Its service worker caches only an explicit list of public app files. It does not cache Firebase configuration responses, SDK downloads, authentication requests, or account data. The existing account cache and queued changes continue to use local storage.
+
+A downloaded update offers an **Update app** button instead of interrupting the current session. The app blocks that update while an editor or sign-in flow is open, while account changes are waiting to sync, while offline, or while a guest session is active. You can finish those actions and then choose to update.
+
+## Performance and mobile interaction
+
+The app reuses date and time formatters, preserves unchanged rendered content, and keeps the heatmap's scroll position during an unchanged refresh. Weekly calculations filter records to the selected week before sorting and building time blocks, including records that overlap the week boundary. Long timelines let supporting browsers defer layout and painting of offscreen records.
+
+Activity cards provide pressed feedback, mobile record-edit buttons retain a 44-pixel touch target, and the layout accounts for phone safe areas. Editors scroll independently and lock background scrolling. Reduced-motion settings disable the card animation.
+
+A local Node.js comparison used 20,000 synthetic records and 30 measured weekly-summary calls after warm-up. The median calculation time decreased from 5.795 ms to 0.469 ms, and the complete summaries matched. This measures that calculation on the development machine, rather than overall loading time or real-phone performance.
+
 ## Try it locally
 
 You need Python 3 to serve the static files. You do not need to install JavaScript dependencies to try guest mode.
@@ -62,7 +80,9 @@ python3 scripts/serve.py
 
 You can then open [the local app](http://127.0.0.1:4173) and choose **Try as a guest** on the sign-in page.
 
-The preview server disables browser caching so edits do not mix old and new JavaScript modules. You can also start it with `npm start`. If a tab was already open during an update, reload it before testing.
+The preview server disables browser HTTP caching so edits do not mix old and new JavaScript modules. You can also start it with `npm start`. If a tab was already open during an update, reload it before testing.
+
+Normal local previews do not register a service worker. You can opt into the persistent offline cache at [the PWA preview](http://127.0.0.1:4173/?pwa=1). After that opt-in, the registered worker also controls normal preview tabs on the same origin. To return to uncached development, unregister it in the browser's developer tools and reload the page.
 
 Guest activities stay in memory. Leaving the guest session or refreshing the page resets them. They are not uploaded or added to an account.
 
@@ -108,7 +128,9 @@ npm test
 npm run check:release
 ```
 
-The automated tests cover app startup and guest navigation, the combined Review layout and chart rendering, majority-overlap assignment to half-hour blocks, the time model, activity merging and undo, weekly aggregation across date and daylight-saving boundaries, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. Cloud adapter tests use SDK substitutes and do not connect to a production database.
+The automated tests cover app startup and guest navigation, the combined Review layout and chart rendering, majority-overlap assignment to half-hour blocks, the time model, activity merging and undo, weekly aggregation across date and daylight-saving boundaries, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. They also cover unchanged-render preservation, formatter reuse, installation prompts and Safari guidance, connectivity notices, update blockers, complete offline-shell installation, and exclusion of account endpoints from the service-worker cache. Cloud adapter tests use SDK substitutes and do not connect to a production database.
+
+When changing any cached app file, update `CACHE_NAME` in `dist/sw.js` in the same deployment. Add new browser dependencies to `SHELL_FILES` and the release allowlist. Keep the HTML and service worker subject to revalidation so returning clients discover new versions. Firebase Hosting already applies those headers. Publish the complete `dist/` directory together.
 
 The release check expects generic, unconfigured Firebase files. A checkout with local Firebase bindings can fail this check until you prepare a clean source release.
 
@@ -118,6 +140,8 @@ The npm lockfile pins the development dependencies. A `minimatch` override selec
 
 - `dist/` contains the browser app and its local SVG icons.
 - `dist/favicon.svg` contains the editable site icon. The matching ICO and Apple touch icon support browser tabs and mobile home screens.
+- `dist/manifest.webmanifest` defines PWA installation, and `dist/pwa.js` provides installation, connectivity, and update controls.
+- `dist/sw.js` caches the public app files, and `dist/icon-192.png` and `dist/icon-512.png` provide opaque home-screen icons derived from the existing four-card artwork.
 - `tests/` contains the dependency-free Node.js tests.
 - `firestore.rules` defines account-scoped access and document validation.
 - `firebase.json` defines static hosting and database rule deployment.

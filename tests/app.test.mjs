@@ -9,12 +9,18 @@ test('Review preserves its layout and signed-in card clicks update the timeline 
   const cached = new Map();
   const nodes = new Map();
   const handlers = new Map();
+  const windowHandlers = new Map();
+  let formatterCount = 0;
+  let contentWrites = 0;
   const element = selector => {
     if (!nodes.has(selector)) {
       const events = new Map();
+      let markup = '';
       nodes.set(selector, {
         id: selector.startsWith('#') ? selector.slice(1) : '',
-        dataset: {}, hidden: false, open: false, innerHTML: '', textContent: '',
+        dataset: {}, hidden: false, open: false, textContent: '',
+        get innerHTML() { return markup; },
+        set innerHTML(value) { markup = value; if (selector === '#view-content') contentWrites += 1; },
         classList: { toggle() {} },
         setAttribute() {},
         replaceChildren() { this.innerHTML = ''; },
@@ -38,7 +44,8 @@ test('Review preserves its layout and signed-in card clicks update the timeline 
     document,
     location: { hash: '#insights', hostname: '127.0.0.1' },
     history: { replaceState() {} },
-    window: { addEventListener() {}, scrollTo() {} },
+    window: { addEventListener(type, callback) { windowHandlers.set(type, callback); }, scrollTo() {} },
+    Intl: { DateTimeFormat: new Proxy(Intl.DateTimeFormat, { construct(target, args) { formatterCount += 1; return new target(...args); } }) },
     requestAnimationFrame(callback) { callback(); },
     CSS: { escape: value => value },
     localStorage: { getItem: key => cached.get(key) ?? null, setItem: (key, value) => cached.set(key, value) },
@@ -88,6 +95,11 @@ test('Review preserves its layout and signed-in card clicks update the timeline 
       return markup;
     };
     const initialReview = assertReview();
+    const initialFormatters = formatterCount;
+    const initialWrites = contentWrites;
+    windowHandlers.get('hashchange')();
+    assert.equal(contentWrites, initialWrites);
+    assert.equal(formatterCount, initialFormatters);
     assert.match(initialReview, /class="distribution-donut"/);
     assert.match(initialReview, /class="distribution-slice /);
     assert.match(initialReview, /class="distribution-fill /);
