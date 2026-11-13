@@ -1,3 +1,6 @@
+import { isActivityIcon } from './activity-icons.js';
+export { activityIcons, isActivityIcon } from './activity-icons.js';
+
 const paths = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
   utensils: '<path d="M5 3v6a3 3 0 0 0 6 0V3M8 3v18m11 0V3c-4 2-4 9 0 9"/>',
@@ -26,13 +29,6 @@ const paths = {
   download: '<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
   shield: '<path d="M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6l-9-4Z"/><path d="m8 12 3 3 5-6"/>',
 };
-
-export const activityIcons = ['sun', 'utensils', 'moon', 'coffee', 'book', 'dumbbell', 'languages', 'users', 'leaf', 'sparkles'];
-
-export function isActivityIcon(value) {
-  return typeof value === 'string' && (activityIcons.includes(value)
-    || /^emoji:[^<>\s\u0000-\u001f\u007f]{1,32}$/u.test(value));
-}
 
 const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',

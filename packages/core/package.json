@@ -1,0 +1,33 @@
+{
+  "name": "daily-karte",
+  "version": "0.1.0",
+  "description": "Shared activity models, validation, summaries, and synchronization for Daily Karte clients.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/index.d.ts", "import": "./lib/index.js", "default": "./lib/index.js" },
+    "./model": { "types": "./lib/model.d.ts", "import": "./lib/model.js", "default": "./lib/model.js" },
+    "./schema": { "types": "./lib/schema.d.ts", "import": "./lib/schema.js", "default": "./lib/schema.js" },
+    "./sync-state": { "types": "./lib/sync-state.d.ts", "import": "./lib/sync-state.js", "default": "./lib/sync-state.js" },
+    "./account": { "types": "./lib/account.d.ts", "import": "./lib/account.js", "default": "./lib/account.js" },
+    "./firebase": { "types": "./lib/firebase.d.ts", "import": "./lib/firebase.js", "default": "./lib/firebase.js" },
+    "./activity-icons": { "types": "./lib/activity-icons.d.ts", "import": "./lib/activity-icons.js", "default": "./lib/activity-icons.js" },
+    "./package.json": "./package.json"
+  },
+  "files": ["lib/*.js", "lib/*.d.ts", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm --prefix ../.. run check:package"
+  },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "repository": { "type": "git", "url": "https://github.com/ViGeng/daily-karte.git", "directory": "packages/core" },
+  "homepage": "https://github.com/ViGeng/daily-karte/tree/main/packages/core#readme",
+  "bugs": { "url": "https://github.com/ViGeng/daily-karte/issues" },
+  "author": "Wei Geng <wei.geng@tum.de>",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "keywords": ["daily-karte", "activity", "journal", "sync", "firebase"],
+  "engines": { "node": ">=22" }
+}

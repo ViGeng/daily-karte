@@ -8,7 +8,7 @@ import {
   hasChanges,
   mergeChanges,
   mergeGuestState,
-} from '../dist/sync-state.js';
+} from '../lib/sync-state.js';
 
 const makeState = (entries = [], cards = []) => ({ cards, entries });
 const entry = (id, note = '') => ({ id, name: '阅读', duration: 30, note });

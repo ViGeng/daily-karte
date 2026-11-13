@@ -131,3 +131,49 @@ All 96 automated tests passed before the final documentation update. ESLint, Jav
 Real iPhone and Android home-screen installation, live Firebase authentication, database rules, and cross-device synchronization remain unverified. These changes have not been deployed.
 
 The final code passed all 96 tests, ESLint, JavaScript syntax checks, and the whitespace diff check. The generic release snapshot passed its check for all 46 reviewed files without reading or copying the checkout's existing Firebase configuration. An additional 390-by-500-pixel browser check verified that the editor scrolls, its save button remains reachable, and the page background stays locked. An unchanged Review refresh retained both the actual heatmap DOM and its horizontal scroll position.
+
+## Shared npm package preparation · 2026-11-13T23:07:59+01:00
+
+The plan was to pause the Raycast extension and prepare a reusable npm package before adding another client.
+
+The publishable `daily-karte@0.1.0` package now lives in `packages/core`. It owns the shared activity behavior and account synchronization, includes generated TypeScript declarations, and has no runtime dependencies. The browser consumes generated modules from that source, and CI checks their consistency. Browser connection setup remains in thin local adapters. The package retains the existing PolyForm Noncommercial license.
+
+The release gate checks the npm tarball's exact 19-file contents and installs it into an independent temporary consumer. It verifies the JavaScript API and TypeScript declarations and saves the verified artifact under `.artifacts/`. The package README documents the public API, and `docs/npm-release.md` explains publication from Wei's npm account.
+
+All 96 application tests passed. Lint, JavaScript syntax checks, generated-module consistency, standalone installation, and package-consumer checks passed. The development dependency audit reported no vulnerabilities. The public-source release check passed for 64 reviewed files in a temporary snapshot with generic Firebase configuration. The existing local Firebase bindings were preserved. Live Firebase behavior and browser rendering were not reverified in this iteration.
+
+The Raycast scaffold remains incomplete and paused. Its copied activity modules were removed, and its manifest now pins the forthcoming npm release. The package has not been published, and the website has not been deployed.
+
+## Initial npm publication · 2026-11-13T23:25:54+01:00
+
+The plan was to retry publication after Wei enabled npm MFA. The verified daily-karte@0.1.0 tarball was accepted after browser authentication and became publicly available after registry processing.
+
+The public registry version, integrity, and SHA-1 digest matched the verified release artifact. A separate temporary project installed the package from npm, matched its lockfile integrity, and passed an activity API smoke check. The release guide now explains the MFA prerequisite and the processing delay. The README records the completed publication, and the Raycast scaffold remains paused.
+
+The documentation passed the whitespace diff check. No package code changed, and the published tarball was not rebuilt.
+
+## Shared core and platform source boundaries · 2026-11-13T23:33:07+01:00
+
+The plan was to verify the shared dependency and make platform-specific maintenance explicit without changing the published core API.
+
+Browser-owned source files and assets now live in `web`. The Web build generates `dist` from those files and the shared package, and it preserves the existing deployment configuration. A fresh output receives an unconfigured public project binding. The model and sync calculation tests now live beside the core and exercise its built modules directly. The other tests continue to cover browser integration and account boundaries.
+
+The Raycast scaffold now has an independent registry lockfile for daily-karte@0.1.0. A dependency check compares its declared version with the core and checks import boundaries. Generated-file checks cover both Web and core output. The architecture guide documents the owning sources and explains why core changes require a new npm version and a client dependency update.
+
+All 96 tests passed. Lint, syntax checks, generated-file checks, package installation and consumer checks, and the Raycast scaffold's TypeScript check passed. The core tarball and Raycast's locked dependency both matched the published release integrity. A generic source snapshot passed the release check for 95 reviewed files. Existing local Firebase bindings were preserved. The published core code and package metadata were unchanged.
+
+The Raycast commands remain unimplemented, and native behavior and live Firebase synchronization remain unverified. This iteration did not deploy the Web application or publish another npm release.
+
+## npm-backed Web release · 2026-11-13T23:38:17+01:00
+
+The plan was to publish and test the Web application before implementing the Raycast commands. Inspection found that the previous Web build still consumed the repository's compiled core directly, so the release build was changed to consume an actual npm installation.
+
+The Web application now pins daily-karte@0.1.0 in its own package manifest and registry lockfile. The normal build copies that installed package into the static output and records its version and integrity in core-release.json. The separate local build supports unpublished core development and remains the test input. The release check verifies the npm-backed output. CI installs the Web dependency and checks both build paths. The service-worker cache version was advanced for the new deployment.
+
+All 96 tests passed, together with lint, syntax checks, package consumer validation, and npm-backed release checks. The frontend was deployed to the existing dailykarte Firebase Hosting site without changing Firestore rules or data. Eleven deployed files matched the checked build, including package provenance and the service worker.
+
+A fresh headless Chrome profile verified guest recording and undo on the deployed site. The browser checks covered three views at four widths, dark appearance, editor scrolling setup, offline reload, and recording in a fresh offline guest session. No JavaScript exceptions occurred. Mobile day and Review screenshots were inspected. Real-account Google sign-in and cross-device synchronization remain unverified. The Raycast commands remain unimplemented.
+
+## Refactor commit preparation · 2026-11-13
+
+Wei tested the deployed npm-backed Web application and reported no problems. The plan is to commit the shared-core extraction and platform separation before continuing Raycast development. Existing local Firebase project bindings remain outside the commit. The scope of Wei's manual checks was not recorded in detail.

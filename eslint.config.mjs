@@ -1,7 +1,7 @@
 export default [{
   ignores: ['node_modules/**'],
 }, {
-  files: ['dist/**/*.js', 'tests/**/*.mjs', 'scripts/**/*.mjs'],
+  files: ['web/**/*.js', 'dist/**/*.js', 'tests/**/*.mjs', 'scripts/**/*.mjs', 'packages/core/src/**/*.js', 'packages/core/tests/**/*.mjs'],
   languageOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
@@ -21,6 +21,6 @@ export default [{
     'eqeqeq': 'error',
   },
 }, {
-  files: ['tests/**/*.mjs', 'scripts/**/*.mjs'],
+  files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'packages/core/tests/**/*.mjs'],
   languageOptions: { globals: { process: 'readonly' } },
 }];

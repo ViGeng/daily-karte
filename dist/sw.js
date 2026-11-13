@@ -1,7 +1,8 @@
-const CACHE_NAME = 'daily-karte-shell-20261112-2';
+const CACHE_NAME = 'daily-karte-shell-20261113-2';
 const SHELL_FILES = [
   './', './index.html', './app.js', './model.js', './icons.js', './account.js',
   './schema.js', './cloud.js', './sync-state.js', './site-config.js', './pwa.js',
+  './activity-icons.js', './account-core.js', './firebase-session.js',
   './styles.css', './manifest.webmanifest', './favicon.svg', './favicon.ico',
   './apple-touch-icon.png', './icon-192.png', './icon-512.png',
 ];

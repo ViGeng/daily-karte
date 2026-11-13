@@ -6,13 +6,22 @@
   "description": "A lightweight activity-card journal for everyday life.",
   "scripts": {
     "start": "python3 scripts/serve.py",
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/*.test.mjs packages/core/tests/*.test.mjs",
     "check": "node --check dist/app.js && node --check dist/model.js && node --check dist/icons.js && node --check dist/account.js && node --check dist/cloud.js && node --check dist/sync-state.js && node --check dist/site-config.js && node --check dist/schema.js && node --check dist/pwa.js && node --check dist/sw.js",
-    "lint": "eslint dist tests scripts eslint.config.mjs",
-    "check:release": "node scripts/check-release.mjs"
+    "lint": "eslint web dist tests scripts packages/core/src packages/core/tests eslint.config.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "build:core": "tsc -p packages/core/tsconfig.json && node scripts/sync-core.mjs",
+    "check:generated": "tsc -p packages/core/tsconfig.json && node scripts/sync-core.mjs --check && node scripts/build-web.mjs --check && node scripts/check-boundaries.mjs",
+    "pretest": "npm run build:web:local",
+    "check:package": "npm run lint && npm run check && npm run check:generated && npm test && node scripts/check-package.mjs",
+    "build:web": "node scripts/sync-core.mjs --installed && node scripts/build-web.mjs",
+    "prestart": "npm run build:web",
+    "build:web:local": "npm run build:core && node scripts/build-web.mjs",
+    "check:web:release": "node scripts/sync-core.mjs --installed --check && node scripts/build-web.mjs --check"
   },
   "devDependencies": {
-    "eslint": "^10.14.0"
+    "eslint": "^10.14.0",
+    "typescript": "5.9.3"
   },
   "license": "PolyForm-Noncommercial-1.0.0",
   "author": "Wei Geng <wei.geng@tum.de>",

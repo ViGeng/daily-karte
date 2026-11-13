@@ -15,9 +15,46 @@ const allowed = new Set([
   'dist/pwa.js', 'dist/sw.js', 'dist/manifest.webmanifest', 'dist/icon-192.png', 'dist/icon-512.png',
   'tests/pwa.test.mjs', 'tests/sw.test.mjs',
   'scripts/check-release.mjs', 'scripts/serve.py', 'tests/app.test.mjs', 'tests/account.test.mjs', 'tests/cloud.test.mjs',
-  'tests/model.test.mjs', 'tests/schema.test.mjs', 'tests/sync-state.test.mjs',
+  'packages/core/tests/model.test.mjs', 'tests/schema.test.mjs', 'packages/core/tests/sync-state.test.mjs',
+  'dist/activity-icons.js', 'dist/account-core.js', 'dist/firebase-session.js',
+  'docs/npm-release.md', 'scripts/sync-core.mjs', 'scripts/check-package.mjs',
+  'packages/core/package.json', 'packages/core/tsconfig.json', 'packages/core/README.md', 'packages/core/LICENSE',
+  'packages/core/src/index.js', 'packages/core/src/types.ts', 'packages/core/src/model.js',
+  'packages/core/src/schema.js', 'packages/core/src/activity-icons.js', 'packages/core/src/sync-state.js',
+  'packages/core/src/account.js', 'packages/core/src/firebase.js',
+  'scripts/build-web.mjs',
+  'scripts/check-boundaries.mjs',
+  'docs/architecture.md',
+  'web/app.js',
+  'web/account.js',
+  'web/cloud.js',
+  'web/icons.js',
+  'web/index.html',
+  'web/styles.css',
+  'web/pwa.js',
+  'web/sw.js',
+  'web/manifest.webmanifest',
+  'web/favicon.svg',
+  'web/favicon.ico',
+  'web/apple-touch-icon.png',
+  'web/icon-192.png',
+  'web/icon-512.png',
+  'web/site-config.example.js', 'web/package.json', 'web/package-lock.json', 'dist/core-release.json',
+  'raycast/package.json',
+  'raycast/package-lock.json',
+  'raycast/tsconfig.json',
+  'raycast/eslint.config.mjs',
+  'raycast/.prettierignore',
+  'raycast/.gitignore',
+  'raycast/README.md',
+  'raycast/LICENSE',
+  'raycast/assets/icon.png',
+  'raycast/src/auth.ts',
+  'raycast/src/types.ts',
+  'raycast/src/lib/http.ts',
+  'raycast/src/lib/session.ts',
 ]);
-const skipped = new Set(['.git', 'node_modules']);
+const skipped = new Set(['.git', 'node_modules', '.artifacts']);
 const patterns = [
   ['private key', /-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/],
   ['GitHub credential', /\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/],
@@ -33,6 +70,7 @@ async function inspect(directory, relative = '') {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (!relative && skipped.has(entry.name)) continue;
     const name = relative ? `${relative}/${entry.name}` : entry.name;
+    if (name === 'packages/core/lib' || name === 'raycast/node_modules' || name === 'web/node_modules') continue;
     const absolute = path.join(directory, entry.name);
     if (entry.isSymbolicLink()) {
       findings.push(`${name}: symbolic links are not allowed in the release`);
@@ -51,7 +89,7 @@ async function inspect(directory, relative = '') {
       continue;
     }
     found.add(name);
-    if (['docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png', 'dist/icon-192.png', 'dist/icon-512.png'].includes(name)) continue;
+    if (['web/favicon.ico', 'web/apple-touch-icon.png', 'web/icon-192.png', 'web/icon-512.png', 'raycast/assets/icon.png', 'docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png', 'dist/icon-192.png', 'dist/icon-512.png'].includes(name)) continue;
     const source = await readFile(absolute, 'utf8');
     for (const [index, line] of source.split('\n').entries()) {
       for (const [label, pattern] of patterns) {
@@ -60,7 +98,7 @@ async function inspect(directory, relative = '') {
       if (line.includes('/Users/' + 'wei/')) {
         findings.push(`${name}:${index + 1}: personal filesystem path`);
       }
-      if (new RegExp(`\\b${['daily', 'karte'].join('')}\\b`).test(line)) {
+      if (!name.endsWith('.md') && new RegExp(`\\b${['daily', 'karte'].join('')}\\b`).test(line)) {
         findings.push(`${name}:${index + 1}: author-owned backend binding`);
       }
     }

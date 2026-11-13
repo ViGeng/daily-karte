@@ -1,0 +1,73 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "daily-karte",
+  "title": "Daily Karte",
+  "description": "Record activities and review today's timeline in your Daily Karte account.",
+  "icon": "icon.png",
+  "author": "ViGeng",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "categories": [
+    "Productivity"
+  ],
+  "platforms": [
+    "macOS"
+  ],
+  "keywords": [
+    "journal",
+    "activity",
+    "DailyKarte",
+    "tracking"
+  ],
+  "commands": [
+    {
+      "name": "record-activity",
+      "title": "Record Activity",
+      "description": "Record a completed activity with an estimated duration and an optional note.",
+      "mode": "view"
+    },
+    {
+      "name": "today",
+      "title": "Today",
+      "description": "Review today's activities and estimated duration totals.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "firebaseProjectId",
+      "title": "Firebase Project ID",
+      "description": "Enter the Firebase project ID used by your Daily Karte website.",
+      "type": "textfield",
+      "required": true
+    },
+    {
+      "name": "googleClientId",
+      "title": "Google OAuth Client ID",
+      "description": "Enter an iOS OAuth client ID from the same Google Cloud project, with the bundle ID com.raycast. The README explains setup.",
+      "type": "textfield",
+      "required": true
+    }
+  ],
+  "scripts": {
+    "dev": "ray develop",
+    "build": "ray build -e dist",
+    "lint": "ray lint",
+    "check": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "format": "prettier --write src tests *.json *.mjs README.md CHANGELOG.md"
+  },
+  "dependencies": {
+    "daily-karte": "0.1.0",
+    "@raycast/api": "2.12.1",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "2.2.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

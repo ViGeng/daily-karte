@@ -1,5 +1,8 @@
 .DS_Store
 node_modules/
+packages/core/lib/
+packages/core/*.tgz
+.artifacts/
 coverage/
 *.log
 *.log.*

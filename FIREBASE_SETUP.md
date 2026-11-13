@@ -15,6 +15,8 @@ The app currently uses Google sign-in through a popup. Your browser must allow t
 
 You set your own project ID in `dist/site-config.js`.
 
+Browser source files live in `web`. After changing those files, run `npm run build:web` before deployment. The build preserves an existing `dist/site-config.js` project binding.
+
 ```js
 export const FIREBASE_PROJECT_ID = 'your-firebase-project-id';
 ```
@@ -32,6 +34,16 @@ The browser loads Web configuration from `/__/firebase/init.json` on Firebase Ho
 ## Deploy
 
 You complete Firebase CLI authentication in your own terminal and browser.
+
+You install the Web application's pinned npm dependency and verify its release build before publishing Hosting changes.
+
+```sh
+npm --prefix web ci --ignore-scripts
+npm run build:web
+npm run check:web:release
+```
+
+For a frontend-only update, you can deploy with `npx firebase-tools deploy --only hosting`. You deploy Firestore rules separately when those rules change. The Hosting build records its core package version and integrity in `dist/core-release.json`.
 
 ```sh
 npx firebase-tools login

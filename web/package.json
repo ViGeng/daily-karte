@@ -1,0 +1,8 @@
+{
+  "name": "daily-karte-web",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "daily-karte": "0.1.0"
+  }
+}

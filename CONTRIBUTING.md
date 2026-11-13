@@ -10,6 +10,7 @@ npm run lint
 npm run check
 npm test
 npm run check:release
+npm run check:package
 ```
 
 You can run the static preview with Python 3.
@@ -19,6 +20,12 @@ python3 -m http.server 4173 --bind 127.0.0.1 --directory dist
 ```
 
 Please describe what changed and how you verified it. Please preserve the separation between guest data, local caches, and signed-in account records.
+
+Shared behavior belongs in `packages/core/src`. Run `npm run build:core` to regenerate the browser modules and npm declarations. The build owns the generated browser modules listed in `scripts/sync-core.mjs`. Do not edit those files directly. The consistency check detects drift. The npm release gate checks the actual tarball in an independent consumer, and `docs/npm-release.md` explains publication.
+
+Browser-specific changes belong in `web`. Run `npm run build:web` to regenerate the complete deployment output. This preserves the existing local `dist/site-config.js` binding. Raycast-specific changes belong in `raycast/src`, which consumes the shared package's public API. `docs/architecture.md` documents the boundaries and the core release procedure needed to update both clients.
+
+The normal Web build requires `npm --prefix web ci --ignore-scripts` and consumes the pinned npm release. For unpublished core changes, use `npm run build:web:local`. Tests use that local build. Before deployment, rebuild with `npm run build:web` and run `npm run check:web:release` to verify the npm-backed output.
 
 Please keep credentials and real activity records out of examples, tests, screenshots, and issues. You can use the existing demo data and reserved example email domains.
 

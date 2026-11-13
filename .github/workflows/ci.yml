@@ -23,13 +23,23 @@ jobs:
           cache: npm
       - name: Install development dependencies
         run: npm ci --ignore-scripts
+      - name: Install Web package dependency
+        run: npm --prefix web ci --ignore-scripts
+      - name: Generate development output
+        run: npm run build:web:local
       - name: Lint source
         run: npm run lint
       - name: Check JavaScript syntax
         run: npm run check
+      - name: Check generated browser modules
+        run: npm run check:generated
       - name: Test application behavior
         run: npm test
       - name: Check public release files
         run: npm run check:release
+      - name: Check npm package and consumer compatibility
+        run: node scripts/check-package.mjs
+      - name: Verify Web release build
+        run: npm run build:web && npm run check:web:release
       - name: Audit development dependencies
         run: npm audit --audit-level=low --registry=https://registry.npmjs.org

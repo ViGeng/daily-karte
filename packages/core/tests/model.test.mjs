@@ -17,8 +17,8 @@ import {
   weekBlockLayout,
   saveActivity,
   undoActivity,
-} from '../dist/model.js';
-import { isValidEntry } from '../dist/schema.js';
+} from '../lib/model.js';
+import { isValidEntry } from '../lib/schema.js';
 
 const gym = DEFAULT_CARDS.find(card => card.id === 'gym');
 const coffee = DEFAULT_CARDS.find(card => card.id === 'coffee');
@@ -243,7 +243,7 @@ test('Fitted ranges remain within the day for midnight and late-night point even
 });
 
 test('Review dates remain consecutive through Berlin daylight-saving changes.', () => {
-  const modelUrl = new URL('../dist/model.js', import.meta.url).href;
+  const modelUrl = new URL('../lib/model.js', import.meta.url).href;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import { activityDays, summarizeWeek, createEntry, DEFAULT_CARDS } from ${JSON.stringify(modelUrl)};
@@ -367,7 +367,7 @@ test('Local time resolution rejects invalid dates and clock values.', () => {
 });
 
 test('Berlin clock changes preserve the second repeated time and reject missing times.', () => {
-  const modelUrl = new URL('../dist/model.js', import.meta.url).href;
+  const modelUrl = new URL('../lib/model.js', import.meta.url).href;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import { resolveEndTime } from ${JSON.stringify(modelUrl)};

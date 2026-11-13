@@ -6,6 +6,27 @@ The interface uses English and follows your system's light or dark appearance. T
 
 The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and share it for permitted noncommercial purposes while retaining the required notices. Commercial use requires separate permission. This is source-available software rather than an OSI-approved open-source project.
 
+## Shared npm package
+
+The `daily-karte@0.1.0` package is [published on npm](https://www.npmjs.com/package/daily-karte). Its source lives in [`packages/core`](packages/core/README.md). It owns the shared activity behavior and account synchronization. It has no runtime dependencies and includes generated TypeScript declarations.
+
+The browser release build uses the published npm package pinned by `web/package.json` and its independent lockfile. Its platform code lives in `web`, and `dist` contains the generated deployment output. The Raycast scaffold pins the same published package with its own lockfile. Its native commands remain unimplemented. [`docs/architecture.md`](docs/architecture.md) explains the release build and the separate local-core development build.
+
+The npm-backed Web release is deployed at [dailykarte.web.app](https://dailykarte.web.app). Guest recording, undo, responsive layouts, and offline reload passed deployed browser checks. Wei tested this deployed release and reported no problems. The precise scope of that manual test was not recorded, so the automated checks do not establish real-account sign-in or cross-device synchronization.
+
+You can run the complete package release gate from the repository root.
+
+```sh
+npm --prefix web ci --ignore-scripts
+npm run build:web
+npm run check:web:release
+npm run check:package
+```
+
+The package checks generate local-core development output. Before deploying, run `npm run build:web` and `npm run check:web:release` again to restore and verify the pinned npm build.
+
+The gate checks the application and installs the actual npm tarball into a separate temporary consumer. It validates the file list, runtime behavior, and TypeScript API and saves the reviewed tarball under `.artifacts/`. [`docs/npm-release.md`](docs/npm-release.md) records the publishing procedure. The initial release was published on November 13, 2026. Its registry integrity matches the verified tarball, and installation from npm passed a separate activity API smoke check.
+
 ## Roadmap
 
 - [x] The app automatically merges consecutive activities from the same card when they overlap or have a gap of up to five minutes.
@@ -126,11 +147,12 @@ npm run lint
 npm run check
 npm test
 npm run check:release
+npm run check:package
 ```
 
 The automated tests cover app startup and guest navigation, the combined Review layout and chart rendering, majority-overlap assignment to half-hour blocks, the time model, activity merging and undo, weekly aggregation across date and daylight-saving boundaries, emoji validation and rendering, isolated account state, queued edits, cloud adapter behavior, and validation of untrusted cached data. They also cover unchanged-render preservation, formatter reuse, installation prompts and Safari guidance, connectivity notices, update blockers, complete offline-shell installation, and exclusion of account endpoints from the service-worker cache. Cloud adapter tests use SDK substitutes and do not connect to a production database.
 
-When changing any cached app file, update `CACHE_NAME` in `dist/sw.js` in the same deployment. Add new browser dependencies to `SHELL_FILES` and the release allowlist. Keep the HTML and service worker subject to revalidation so returning clients discover new versions. Firebase Hosting already applies those headers. Publish the complete `dist/` directory together.
+When changing any cached app file, update `CACHE_NAME` in `web/sw.js` in the same deployment and run `npm run build:web`. Add new browser dependencies to `SHELL_FILES` and the release allowlist. Keep the HTML and service worker subject to revalidation so returning clients discover new versions. Firebase Hosting already applies those headers. Publish the complete `dist/` directory together.
 
 The release check expects generic, unconfigured Firebase files. A checkout with local Firebase bindings can fail this check until you prepare a clean source release.
 
@@ -138,11 +160,15 @@ The npm lockfile pins the development dependencies. A `minimatch` override selec
 
 ## Project layout
 
-- `dist/` contains the browser app and its local SVG icons.
-- `dist/favicon.svg` contains the editable site icon. The matching ICO and Apple touch icon support browser tabs and mobile home screens.
-- `dist/manifest.webmanifest` defines PWA installation, and `dist/pwa.js` provides installation, connectivity, and update controls.
-- `dist/sw.js` caches the public app files, and `dist/icon-192.png` and `dist/icon-512.png` provide opaque home-screen icons derived from the existing four-card artwork.
-- `tests/` contains the dependency-free Node.js tests.
+- `web/` owns the browser interface, platform adapters, PWA behavior, and assets. The build copies these files into `dist/`.
+- `dist/` contains generated deployment files. The local `dist/site-config.js` binding remains a configuration exception and is preserved during builds.
+- `packages/core/src/` owns the reusable package code and shared types. `packages/core/lib/` contains ignored build output for npm.
+- `scripts/sync-core.mjs` generates the browser's shared modules from the built package. `web/account.js` and `web/cloud.js` keep browser connection setup separate.
+- `scripts/check-package.mjs` validates the npm tarball and an independent JavaScript and TypeScript consumer.
+- `web/favicon.svg` contains the editable site icon. Its companion image assets support browser tabs and mobile home screens.
+- `web/manifest.webmanifest` defines PWA installation, and `web/pwa.js` provides the browser controls.
+- `web/sw.js` defines the public offline shell and its version.
+- `packages/core/tests/` tests the model and sync calculations, while `tests/` covers browser integration and account boundaries.
 - `firestore.rules` defines account-scoped access and document validation.
 - `firebase.json` defines static hosting and database rule deployment.
 - `scripts/check-release.mjs` checks the public release file set for accidental metadata and common secret patterns.
