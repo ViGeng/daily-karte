@@ -29,4 +29,4 @@ The normal Web build requires `npm --prefix web ci --ignore-scripts` and consume
 
 Please keep credentials and real activity records out of examples, tests, screenshots, and issues. You can use the existing demo data and reserved example email domains.
 
-Contributions must be compatible with the project's PolyForm Noncommercial 1.0.0 license. Third-party code must retain its required notices. Please report security findings according to [SECURITY.md](SECURITY.md).
+Contributions to the Web application and shared core must be compatible with PolyForm Noncommercial 1.0.0. Contributions to the Raycast platform code use MIT. The core npm dependency retains its original license when used by Raycast. Third-party code must retain its required notices. Please report security findings according to [SECURITY.md](SECURITY.md).

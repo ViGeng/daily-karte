@@ -43,3 +43,26 @@ jobs:
         run: npm run build:web && npm run check:web:release
       - name: Audit development dependencies
         run: npm audit --audit-level=low --registry=https://registry.npmjs.org
+
+  raycast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: raycast/package-lock.json
+      - name: Install extension dependencies
+        run: npm --prefix raycast ci --ignore-scripts
+      - name: Lint the extension
+        run: npm --prefix raycast run lint
+      - name: Check extension types
+        run: npm --prefix raycast run check
+      - name: Test extension adapters
+        run: npm --prefix raycast test

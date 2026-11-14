@@ -1,6 +1,6 @@
 # Third-party notices
 
-The PolyForm Noncommercial license applies to the original daily-karte project code. Third-party components and trademarks retain their own terms.
+The PolyForm Noncommercial license applies to the daily-karte shared core and Web application. The Raycast platform code uses MIT under `raycast/LICENSE`. Its shared dependency retains PolyForm Noncommercial, as recorded in `raycast/THIRD_PARTY_NOTICES.md`. Other components and trademarks retain their own terms.
 
 ## Firebase JavaScript SDK
 

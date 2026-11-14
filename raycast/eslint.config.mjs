@@ -1,3 +1,3 @@
 import raycast from "@raycast/eslint-config";
 
-export default [...raycast, { ignores: ["src/shared/**"] }];
+export default raycast;

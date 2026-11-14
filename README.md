@@ -2,17 +2,25 @@
 
 daily-karte is a lightweight activity-card journal for everyday life. You can record what you just finished with one tap, adjust an approximate time, and look back at the main moments of your day.
 
-The interface uses English and follows your system's light or dark appearance. This is an early prototype, and Google sign-in and cloud synchronization still need verification against a real Firebase deployment.
+The interface uses English and follows your system's light or dark appearance. This is an early prototype. Wei has manually tested the deployed Web release and confirmed that native Raycast recording works. Broader cross-device acceptance testing remains incomplete.
 
-The source is available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and share it for permitted noncommercial purposes while retaining the required notices. Commercial use requires separate permission. This is source-available software rather than an OSI-approved open-source project.
+The Web application and shared npm core are available under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, modify, and share it for permitted noncommercial purposes while retaining the required notices. Commercial use requires separate permission. The Web application and shared core are source-available software rather than OSI-approved open-source software. The Raycast platform code uses its separate [MIT license](raycast/LICENSE), and that license does not relicense the shared npm dependency.
 
 ## Shared npm package
 
 The `daily-karte@0.1.0` package is [published on npm](https://www.npmjs.com/package/daily-karte). Its source lives in [`packages/core`](packages/core/README.md). It owns the shared activity behavior and account synchronization. It has no runtime dependencies and includes generated TypeScript declarations.
 
-The browser release build uses the published npm package pinned by `web/package.json` and its independent lockfile. Its platform code lives in `web`, and `dist` contains the generated deployment output. The Raycast scaffold pins the same published package with its own lockfile. Its native commands remain unimplemented. [`docs/architecture.md`](docs/architecture.md) explains the release build and the separate local-core development build.
+The browser release build uses the published npm package pinned by `web/package.json` and its independent lockfile. Its platform code lives in `web`, and `dist` contains the generated deployment output. The Raycast extension pins the same published package with its own lockfile. Its official service configuration is built in, so users only need Google authorization. [`docs/architecture.md`](docs/architecture.md) explains the release build and the separate local-core development build.
 
 The npm-backed Web release is deployed at [dailykarte.web.app](https://dailykarte.web.app). Guest recording, undo, responsive layouts, and offline reload passed deployed browser checks. Wei tested this deployed release and reported no problems. The precise scope of that manual test was not recorded, so the automated checks do not establish real-account sign-in or cross-device synchronization.
+
+The Raycast Record Activity command displays activity cards in a searchable six-column gallery with square icon tiles, names, and default durations. Its native forms support recording activities and creating or editing cards. The Today command defaults to Timeline and remembers whether you last selected Timeline or By Activity. The separate This Week command displays the current week's calendar across the full content area. It has no day list, statistics sidebar, or explanatory text. Card changes affect future recordings and preserve saved historical details. Saves use version-conditioned atomic commits to protect concurrent edits.
+
+For manual Raycast testing, run `npm --prefix raycast run dev`. Wei tested the native commands and reported that they work well. The final standalone distribution build also has native Capture Window evidence for all three commands. Maintainer configuration is documented in `raycast/DEVELOPMENT.md`.
+
+The [new-extension Store submission](https://github.com/raycast/extensions/pull/33505) is ready for Raycast review. Store-facing documentation and release files are exported with `node scripts/export-raycast.mjs /path/to/extensions/daily-karte`. The export preserves the registry dependency and its license notices.
+
+The reviewer follow-up uses Raycast's official Google OAuth utilities and preserves the exact attempted merge result for unchanged-form retries. Wei reopened a command after the migration and confirmed that the existing account data loads normally. The extension's 39 tests cover its Firebase adapter, provider configuration, input validation, and calendar presentation.
 
 You can run the complete package release gate from the repository root.
 
@@ -181,4 +189,4 @@ You can follow [CONTRIBUTING.md](CONTRIBUTING.md) to propose a change. Please re
 
 Required Notice: Copyright (c) 2026 Wei Geng. daily-karte.
 
-The original project code is provided under [PolyForm Noncommercial 1.0.0](LICENSE). Third-party software and trademarks retain their own terms, as described in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The Web application and shared npm core use [PolyForm Noncommercial 1.0.0](LICENSE). The Raycast platform code uses [MIT](raycast/LICENSE). Its shared npm dependency retains the core's original license. Other software and trademarks retain their own terms, as described in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

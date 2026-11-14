@@ -177,3 +177,137 @@ A fresh headless Chrome profile verified guest recording and undo on the deploye
 ## Refactor commit preparation · 2026-11-13
 
 Wei tested the deployed npm-backed Web application and reported no problems. The plan is to commit the shared-core extraction and platform separation before continuing Raycast development. Existing local Firebase project bindings remain outside the commit. The scope of Wei's manual checks was not recorded in detail.
+
+## Raycast native commands · 2026-11-13T23:51:58+01:00
+
+The plan was to implement the Raycast commands after committing the shared npm refactor. Commit 35ab218 records that refactor under Wei Geng's identity and excludes the existing local Firebase bindings.
+
+Record Activity now loads account cards and provides a native form for an ending time, duration, and note. Today lists the current local day's records with details and an estimated duration total. Both commands consume the published shared package for data rules. The Raycast adapter maps Firestore REST documents, validates remote records, and commits merges in transactions. It re-reads on transaction conflicts and preserves activity identifiers across unchanged-form retries after ambiguous commit failures.
+
+Eleven adapter and OAuth lifecycle tests passed. Local ESLint, formatting checks, TypeScript checks, and the distribution build passed. Repository lint and generated-module checks passed. A separate Raycast CI job runs its local checks and tests. The shared package and deployed Web build were not changed by this implementation.
+
+Native interaction checks could not run because computer access to Raycast was not approved. Wei has not yet created the required Google OAuth client, so live sign-in and cross-client synchronization remain unverified. The extension README includes setup and local test instructions. Raycast's additional Store manifest validation rejects the existing noncommercial license declaration because its schema requires MIT. The existing license was retained, and Store validation remains a separate failing check. This iteration did not submit the extension to the Store or commit the extension implementation.
+
+## Raycast manual test handoff · 2026-11-13T23:53:39+01:00
+
+The plan was to start the development server for Wei to test the native commands. Eleven adapter tests, local lint, and TypeScript checks passed. The development server compiled both commands and reached its ready state. The README now links directly to Google Cloud OAuth client settings and explains their relationship to Firebase Authentication. Native interaction and live sign-in results remain pending manual testing.
+
+## Separate extension licensing · 2026-11-13T23:55:59+01:00
+
+Wei authorized MIT for the Raycast platform code while retaining the existing shared npm core license. The extension license file, manifest, and root lockfile metadata now declare MIT. Its third-party notices preserve the core copyright notice and a copy of its PolyForm Noncommercial license. Repository documentation now explains these separate scopes.
+
+The core license bytes and its dependency lock entry were verified unchanged, including the published version and integrity. Local lint, TypeScript checks, all 11 adapter tests, and the full Raycast manifest and Store lint passed. The previous license declaration error is resolved. This change did not republish the core or submit the extension to the Store.
+
+## Google-only Raycast onboarding · 2026-11-14T00:08:15+01:00
+
+The plan was to remove user-facing Firebase project and Google OAuth client fields and make sign-in use the official service. Wei supplied the public iOS OAuth client ID after creating it in the existing Google Cloud project.
+
+The extension now supplies both public application identifiers from its own service configuration. Its manifest declares no required user preferences, and the connection error view no longer directs users to edit development IDs. The onboarding test exercises Google authorization using that application configuration. Maintainer setup instructions moved to DEVELOPMENT.md, while the extension README describes the user sign-in flow. The release checker explicitly permits the official extension's public service identifiers without changing its secret checks.
+
+All 12 adapter and onboarding tests, local lint, and TypeScript checks passed. Real Google consent, native interaction, and cross-client synchronization remain pending manual testing. The shared npm core and its PolyForm license were unchanged, and the Raycast platform code retains MIT.
+
+The final onboarding implementation also passed the full Raycast manifest and Store lint and the distribution build. The generic source snapshot passed its release check for 109 reviewed files.
+
+## Firebase user save compatibility · 2026-11-14T00:15:06+01:00
+
+Wei reached the native recording form but received PERMISSION_DENIED when saving. The extension used the REST beginTransaction endpoint to create a read-write transaction. Firestore documentation states that third-party authenticated requests cannot create those transactions. The earlier transport substitutes accepted that unsupported flow and missed the restriction.
+
+The save adapter now reads records normally and commits each merge atomically. Creates require an unused ID, and deletes require the exact updateTime read from each merged record. Known version conflicts cause a fresh query before retrying. Ambiguous failures still preserve the form's activity ID for a manual retry. The database rules were not modified or redeployed, and the shared npm package was unchanged.
+
+All 17 adapter and onboarding tests passed, including the Firebase user endpoint restriction, version checks, concurrent edits, racing creates, bounded retries, and ambiguous commit failures. Local lint and TypeScript checks passed. The actual save still requires a native user retry after rebuilding the development extension.
+
+The final save fix also passed full Raycast manifest and Store lint and the distribution build. Repository lint and generated-module checks passed, and the Firestore rules and shared core had no changes.
+
+## Raycast card management and daily statistics · 2026-11-14T00:28:34+01:00
+
+Wei confirmed that native recording works after the Firebase save fix. The plan was to replace the plain lists with split list and detail views, add creation and editing for activity cards, add editing for saved records, and show useful daily statistics.
+
+Record Activity now shows card details and provides native forms for names, icons, colors, and default durations. Today includes an overview, per-activity totals, and a timeline with an editor for ending times, durations, and notes. Its overview reports record count, total estimated duration, activity count, average timed duration, and records without a duration. Card updates preserve historical record snapshots. Record edits retain their identity and creation time, refresh the timeline after saving, and apply the shared merge rules on the target date.
+
+Editors load the current document version and require it when saving. A stale editor refuses to overwrite a change from another client. Conditional neighbor deletions retain their existing conflict protection. The new presentation helpers use the published core's daily summary rather than introducing another aggregation model.
+
+All 30 Raycast tests passed, including card saves, stale editors, cross-date record moves, neighbor conflicts, retry confirmation, input validation, and daily statistics. TypeScript, local lint, full Raycast Store lint, and the distribution build passed. Repository lint, generated-module checks, and dependency boundary checks passed. The core, Web sources, Firestore rules, and published npm package were unchanged. Native acceptance tests for the new interface and editing flows remain pending Wei's manual test.
+
+## Raycast Today view selector · 2026-11-14T00:41:00+01:00
+
+Wei requested the native dropdown pattern shown in his screenshots. The plan was to organize Today into selectable views at the right of its search bar.
+
+Today now opens in Overview and provides a native dropdown for Overview, By Activity, and Timeline. Only the selected view appears, while its details and actions remain available. Switching views clears the previous search. Both commands explicitly enable native filtering with their controlled search text, correcting the search behavior found during the documentation check.
+
+All 30 existing tests, TypeScript checks, and local lint passed. The dropdown's native appearance and interactions still require Wei's manual test.
+
+Full Raycast Store lint and the distribution build also passed. The development server was restarted for manual testing.
+
+## Remembered Raycast views and weekly calendar · 2026-11-14
+
+Wei requested that Today remove Overview, default to Timeline, restore the last selected view after reopening, and provide more information through a weekly calendar. The plan was to use native dropdown persistence and reuse the published core's weekly statistics and block layout.
+
+Today now defaults to Timeline and uses Raycast's stored dropdown selection for subsequent launches. Its available views are Timeline, By Activity, and Weekly Calendar. Daily record counts and estimated duration remain in the list headings. The calendar shows Monday through Sunday with colored half-hour blocks, untimed markers, overlap markers, and a highlighted day. Users can navigate earlier weeks, expand the calendar, and open a day's editable records. The shared record item component keeps timeline details and edit actions consistent across both lists.
+
+Weekly queries include a 24-hour lookahead after the boundary so that the shared layout can display records crossing into the week from Sunday. The shared package still owns aggregation, date boundaries, overlap handling, and block layout. Calendar images are generated in memory, while Raycast persists only the view selection.
+
+All 35 Raycast tests passed, including weekly query boundaries, cross-week records, daylight-saving behavior, SVG escaping, and calendar markers. TypeScript, local lint, full Raycast Store lint, and the distribution build passed. Repository lint, generated-module checks, and dependency boundaries passed. Light and dark calendar examples were rendered with sample data in an isolated headless browser and visually inspected. Native dropdown restoration and calendar display remain pending Wei's manual test.
+
+## Standalone current-week calendar · 2026-11-14T00:54:54+01:00
+
+Wei requested a separate weekly command because the calendar no longer belongs under Today. His screenshot showed the split preview clipping the image above the metadata. The plan was to display only the current week across the full content area and remove the surrounding explanations.
+
+This Week now has its own command and renders one calendar image in a native Detail view. It has no left list, metadata panel, large heading, explanatory paragraphs, earlier-week navigation, or day drilldown. The image includes dates in its column headers and fits within 336 pixels of intrinsic height even when activities span all 24 hours. Today retains only Timeline and By Activity, with its existing native selection persistence. Its data loader once again queries only today's records.
+
+All 36 Raycast tests passed, including a new full-week image-fit check. TypeScript, local lint, full Raycast Store lint, and the three-command distribution build passed. Repository lint, generated checks, and dependency boundaries passed. A compact light and dark preview with midnight and late-evening sample records was rendered and visually inspected. The actual standalone layout remains pending Wei's native test after restarting development mode.
+
+## Raycast activity gallery · 2026-11-14T00:58:00+01:00
+
+Wei confirmed that the current interface works well and requested a gallery instead of a list for Record Activity. The plan was to replace its split List with Raycast's native Grid while retaining the existing account and form flows.
+
+Record Activity now displays four columns of activity tiles with colored icons or custom emoji, names, and default durations. Native search filtering, recording, card creation, card editing, refresh, and browser actions remain available. The card gallery uses the existing icon mapping and shared package without introducing generated tile assets or another data model.
+
+All 36 existing tests, TypeScript checks, local lint, full Raycast Store lint, and the three-command distribution build passed. The gallery's native appearance remains pending Wei's manual test.
+
+## Compact gallery and native emoji content · 2026-11-14T01:03:09+01:00
+
+Wei's screenshot showed that the four-column gallery was too large and its images were blank. The previous compiler and transport checks had not established native image rendering. The plan was to reduce tile size and use explicit Grid content values with native emoji rendering.
+
+Record Activity now uses six columns with a 16:9 aspect ratio and medium insets. The section explicitly carries the same layout settings. Each tile supplies a content value and full-name tooltip. Custom emoji pass directly to Raycast as emoji strings instead of theme-specific SVG sources, while built-in icons retain their native source and color. Record, create, and edit actions remain available.
+
+All 36 existing tests, TypeScript checks, local lint, full Raycast Store lint, and the distribution build passed. The actual native icon and emoji display still requires Wei's manual check after restarting development mode.
+
+## Balanced activity tile proportions · 2026-11-14T01:04:48+01:00
+
+Wei's latest screenshot confirms that native emoji and built-in icons now display. He requested more natural gallery proportions because the wide tiles left too much space around the small images. The plan was to use square icon tiles with less internal padding.
+
+The gallery retains six columns and now uses a square aspect ratio with small image insets. Native labels, default durations, full-name tooltips, and form actions remain available. The README describes the current square layout.
+
+All 36 existing tests, TypeScript checks, local lint, full Raycast Store lint, and the distribution build passed. The new tile proportions still require Wei's native visual check.
+
+## Raycast Store submission · 2026-11-14T01:25:20+01:00
+
+Wei tested the native extension, reported that it works well, and requested a new-extension PR following Raycast's submission guidelines. He confirmed that the Google OAuth application is in production. The plan was to export an independent extension from the current official main branch, prepare Store documentation and native captures, validate the distribution, and submit it for review.
+
+PR https://github.com/raycast/extensions/pull/33505 now submits the extension from codex/daily-karte and is ready for review. Its changes are limited to extensions/daily-karte. Commits 458c025df2 and 6bac327b35 use Wei Geng's identity and email. The source repository now provides an explicit exporter, a user-facing Store README, standard 120-column formatting, official data-loading and failure-toast utilities, and a single initial Store changelog entry. Internal development history remains in this repository.
+
+The final export contains three unmodified 2000-by-1250 native Capture Window images with matching backgrounds. A screenshot containing the account email was excluded and retained only in ignored local artifacts. The gallery no longer displays that email. The author supplied fresh captures of all three commands after the independent distribution build, and they were inspected. The image bytes were preserved when the approved captures were renamed.
+
+An independent npm installation passed all 36 tests, TypeScript checks, official Raycast lint, and the distribution build. npm reported zero known vulnerabilities after a patched minimatch override was added to the development dependency tree. The official metadata validator passed all three final captures. Repository lint, generated-file and dependency-boundary checks, source export comparison, and the generic 124-file release snapshot passed. The core license hash remained unchanged, and the extension preserves its MIT platform license alongside the dependency's PolyForm Noncommercial notice and license text.
+
+The latest PR commit passed GitHub's build, npm, changelog, duplicate-extension, maintainer-edit, and metadata checks. Automated code review and Socket pull-request alerts were still running at this checkpoint. Raycast human review and Store publication remain outstanding. The Web sources, deployed application, shared npm package, and Firestore rules were not changed by the submission.
+
+## Raycast reviewer bot fixes · 2026-11-14T01:53:49+01:00
+
+Wei requested fixes for the reviewer bot's comments on PR 33505. The plan was to inspect all seven findings, reproduce the merge retry defect, update the owning source, export the changes, and push them to the existing submission branch.
+
+Commit 1fec030364 addresses all seven findings and uses Wei Geng's identity. Recording forms now retain the exact attempted merge result across new Firestore client instances. An unchanged retry can confirm an already-saved merged edit without rebuilding it from neighbors deleted by the successful first commit. A later edit from another client still produces a conflict. Three regression cases cover these outcomes, and the successful-merge case reproduces the original false-conflict error on the prior code.
+
+Google OAuth now uses OAuthService.google, withAccessToken, and getAccessToken from the official Raycast utilities. The authorization namespace, client ID, and scopes remain consistent with the existing configuration. The custom Google authorization and refresh implementation was removed, while the validated Firebase exchange remains in the platform adapter. Wei reopened a command after the migration and confirmed that existing account data loads normally.
+
+The manifest now states that a Google account is required. Gallery actions reserve the first two automatic shortcut slots, and the shortcut table reflects primary timeline editing and calendar refresh through Return. All refresh and retry actions have consistent icons. Split lists use subtitles and detail metadata instead of accessories. The error view has a search placeholder. The Store changelog retains one initial release entry, and all fixes were applied to the source before export.
+
+All 39 tests, TypeScript checks, local lint, full Raycast Store lint, and the distribution build passed in the exported PR directory. Repository lint, generated checks, dependency boundaries, source export comparison, and whitespace checks passed. All seven bot threads received specific replies and were marked resolved. GitHub checks were rerunning after the push, and renewed automated review and Raycast human review remained outstanding at this checkpoint.
+
+## Commit the completed extension to the source repository · 2026-11-14T02:01:15+01:00
+
+Wei requested that all necessary work be committed and pushed to the Daily Karte repository. The plan was to include the completed Raycast implementation, account integration, tests, native Store screenshots, license notices, CI job, export tooling, and current documentation. The earlier shared-core refactor is already committed locally and is also ahead of the remote main branch.
+
+All 96 Web and core tests and all 39 Raycast tests passed in this session. Repository lint, JavaScript syntax checks, generated-file and dependency-boundary checks, Raycast type checks, and Raycast lint passed. The architecture introduction now reflects the completed native implementation and Wei's successful account-loading check. Existing machine-specific changes in .firebaserc.example and dist/site-config.js remain outside the commit. The staged source tree will be checked against the public-release allowlist before the normal main-branch push.
+
+The actual staged source snapshot passed the release check for 124 reviewed files, and the Web release output matched its pinned npm dependency. The commit includes 41 reviewed source files and excludes both local Firebase binding files.

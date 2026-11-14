@@ -1,6 +1,6 @@
 # Maintain shared behavior and platform code
 
-Daily Karte has one shared core and separate platform adapters. The Web application currently works, while the Raycast extension remains an incomplete scaffold. Sharing its dependency does not mean that its commands or account synchronization are implemented.
+Daily Karte has one shared core and separate platform adapters. The Web application is deployed, and the Raycast extension implements Record Activity, Today, and This Week. Wei has tested the native commands and confirmed that account data still loads after the official OAuth migration. Automated adapter tests use substitutes and do not replace live cross-client checks.
 
 ## Choose the owning source
 
@@ -42,7 +42,15 @@ npm --prefix raycast ci --ignore-scripts
 npm --prefix raycast run check
 ```
 
-These commands install dependencies and type-check the existing scaffold. They do not establish that its native commands work. Recording and Today views still require implementation and native verification.
+These commands install dependencies and type-check the extension. Its native commands call the shared package for validation, merging, and summaries. Raycast-specific REST code maps Firestore documents and saves merges with atomic commits. New entries require a previously unused ID, and deletions use the exact updateTime read from each original record. Conflicts trigger a fresh query before retrying. Newly inserted activities that arrive after the query can remain separate, but the commit does not overwrite modified merge neighbors. These checks do not establish live sign-in or native interaction behavior.
+
+`record-activity.tsx` owns the searchable activity gallery, which uses Raycast's native Grid component. `today.tsx` owns the Timeline and By Activity views. Its native dropdown persists the selected view and defaults to Timeline. `this-week.tsx` loads the current week and displays its calendar in a standalone Detail view without a list or metadata panel. `entry-item.tsx` supplies timeline details and the edit action. The native forms in `card-form.tsx` and `entry-form.tsx` call the same shared validators and record rules as the Web client. Presentation helpers add view-specific formatting to the shared summaries. They do not implement another aggregation or merge model.
+
+The weekly calendar uses the package's `summarizeWeek` and `weekBlockLayout` exports. Its SVG renderer draws the returned geometry at a compact height so that a full week remains visible. A weekly REST query includes up to 24 hours after the week's end, covering the maximum duration of a record that can overlap Sunday. Shared summary rules count totals by ending date while clipping visual blocks to the week. Calendar images are generated in memory, and the extension does not persist activity data or rendered account images.
+
+Editors fetch the current record and its updateTime before opening a form. Updates require that version, so a stale editor cannot overwrite a later change from another client. Card saves write only the card document. Record edits retain their identity, creation time, and historical activity details. Moving an entry to another date queries the target day and applies the shared neighbor merge rule there.
+
+An unchanged recording form retains its exact attempted result across client instances. After an ambiguous response, the adapter confirms that result before recomputing a merge. This state remains in memory and resets when the form changes. Google OAuth uses Raycast's official service and authenticated command wrapper, while the platform adapter continues to exchange the authorized Google assertion for a Firebase session.
 
 ## Change the core version deliberately
 
@@ -70,3 +78,9 @@ npm run check:package
 The generated-file check compares both core and Web output with their owners. The dependency check rejects platform imports in the core and repository-internal core imports in Raycast. It also compares the core version with Raycast's declared dependency. CI runs these checks before validating the package consumer.
 
 `docs/npm-release.md` documents publication. The build and dependency checks do not deploy the Web application, publish npm versions, or submit the Raycast extension.
+
+## Keep the license scopes separate
+
+The Web application and shared npm core retain PolyForm Noncommercial 1.0.0. The Raycast platform code uses MIT under `raycast/LICENSE`. The extension's dependency keeps the core's original license and notices, recorded in `raycast/THIRD_PARTY_NOTICES.md`. Changing an extension license declaration does not change the npm package's license.
+
+The official Raycast application identifiers are maintained in `raycast/src/service.ts`. The extension does not request them as user preferences. `raycast/DEVELOPMENT.md` describes the one-time maintainer setup. This platform configuration does not belong to the shared npm core.

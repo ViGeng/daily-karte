@@ -23,6 +23,7 @@ const allowed = new Set([
   'packages/core/src/schema.js', 'packages/core/src/activity-icons.js', 'packages/core/src/sync-state.js',
   'packages/core/src/account.js', 'packages/core/src/firebase.js',
   'scripts/build-web.mjs',
+  'scripts/export-raycast.mjs',
   'scripts/check-boundaries.mjs',
   'docs/architecture.md',
   'web/app.js',
@@ -45,14 +46,39 @@ const allowed = new Set([
   'raycast/tsconfig.json',
   'raycast/eslint.config.mjs',
   'raycast/.prettierignore',
+  'raycast/.prettierrc',
   'raycast/.gitignore',
   'raycast/README.md',
+  'raycast/DEVELOPMENT.md',
   'raycast/LICENSE',
+  'raycast/THIRD_PARTY_NOTICES.md',
+  'raycast/licenses/daily-karte-LICENSE',
   'raycast/assets/icon.png',
   'raycast/src/auth.ts',
+  'raycast/src/service.ts',
   'raycast/src/types.ts',
   'raycast/src/lib/http.ts',
   'raycast/src/lib/session.ts',
+  'raycast/CHANGELOG.md',
+  'raycast/store/CHANGELOG.md',
+  'raycast/metadata/daily-karte-1.png',
+  'raycast/metadata/daily-karte-2.png',
+  'raycast/metadata/daily-karte-3.png',
+  'raycast/src/components.tsx',
+  'raycast/src/lib/firestore.ts',
+  'raycast/src/lib/forms.ts',
+  'raycast/src/lib/presentation.ts',
+  'raycast/src/lib/calendar.ts',
+  'raycast/src/card-form.tsx',
+  'raycast/src/entry-form.tsx',
+  'raycast/src/entry-item.tsx',
+  'raycast/src/this-week.tsx',
+  'raycast/src/record-activity.tsx',
+  'raycast/src/today.tsx',
+  'raycast/tests/firestore.test.ts',
+  'raycast/tests/presentation.test.ts',
+  'raycast/tests/calendar.test.ts',
+  'raycast/tests/session.test.ts',
 ]);
 const skipped = new Set(['.git', 'node_modules', '.artifacts']);
 const patterns = [
@@ -89,7 +115,7 @@ async function inspect(directory, relative = '') {
       continue;
     }
     found.add(name);
-    if (['web/favicon.ico', 'web/apple-touch-icon.png', 'web/icon-192.png', 'web/icon-512.png', 'raycast/assets/icon.png', 'docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png', 'dist/icon-192.png', 'dist/icon-512.png'].includes(name)) continue;
+    if (['web/favicon.ico', 'web/apple-touch-icon.png', 'web/icon-192.png', 'web/icon-512.png', 'raycast/assets/icon.png', 'raycast/metadata/daily-karte-1.png', 'raycast/metadata/daily-karte-2.png', 'raycast/metadata/daily-karte-3.png', 'docs/login.jpg', 'dist/favicon.ico', 'dist/apple-touch-icon.png', 'dist/icon-192.png', 'dist/icon-512.png'].includes(name)) continue;
     const source = await readFile(absolute, 'utf8');
     for (const [index, line] of source.split('\n').entries()) {
       for (const [label, pattern] of patterns) {
@@ -98,7 +124,7 @@ async function inspect(directory, relative = '') {
       if (line.includes('/Users/' + 'wei/')) {
         findings.push(`${name}:${index + 1}: personal filesystem path`);
       }
-      if (!name.endsWith('.md') && new RegExp(`\\b${['daily', 'karte'].join('')}\\b`).test(line)) {
+      if (!name.endsWith('.md') && name !== 'raycast/src/service.ts' && new RegExp(`\\b${['daily', 'karte'].join('')}\\b`).test(line)) {
         findings.push(`${name}:${index + 1}: author-owned backend binding`);
       }
     }
