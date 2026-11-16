@@ -67,11 +67,10 @@ let demo = false;
 let demoState = null;
 let selectedDay = dateKey();
 const initialView = location.hash.slice(1);
-// Existing installations may retain the old manifest launch URL.
-const legacyPwaLaunch = initialView === 'today'
-  && (window.matchMedia?.('(display-mode: standalone)')?.matches || globalThis.navigator?.standalone);
-let view = !legacyPwaLaunch && VIEWS.some(item => item.id === initialView) ? initialView : 'cards';
-if (legacyPwaLaunch) history.replaceState(null, '', '#cards');
+const isStandalone = () => Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches || globalThis.navigator?.standalone);
+const standaloneLaunch = isStandalone();
+let view = !standaloneLaunch && VIEWS.some(item => item.id === initialView) ? initialView : 'cards';
+if (standaloneLaunch && initialView !== 'cards') history.replaceState(null, '', '#cards');
 let reviewYear = Number(selectedDay.slice(0, 4));
 let reviewDayExpanded = false;
 let reviewFullDay = false;
@@ -752,7 +751,19 @@ window.addEventListener('storage', event => {
     if (!demo && !$('#editor').open) render();
   }
 });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#editor').open) render(); });
+function resumeWorkspace() {
+  if (document.hidden || $('#editor').open) return;
+  if (isStandalone() && !demo && !signInBusy) {
+    view = 'cards';
+    selectedDay = dateKey();
+    reviewYear = Number(selectedDay.slice(0, 4));
+    reviewDayExpanded = false;
+    history.replaceState(null, '', '#cards');
+  }
+  render();
+}
+document.addEventListener('visibilitychange', resumeWorkspace);
+window.addEventListener('pageshow', event => { if (event.persisted) resumeWorkspace(); });
 window.addEventListener('offline', renderAccount);
 window.addEventListener('online', () => {
   renderAccount();

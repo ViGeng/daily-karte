@@ -5,6 +5,7 @@ import { dateKey, DEFAULT_CARDS } from '../dist/model.js';
 
 test('Review preserves its layout, recording works before authentication, and sign-out clears instant startup.', async () => {
   let cloud;
+  let finishSignIn;
   const writes = [];
   const cached = new Map();
   const nodes = new Map();
@@ -36,6 +37,7 @@ test('Review preserves its layout, recording works before authentication, and si
   };
   const document = {
     body: element('body'), activeElement: element('body'),
+    hidden: false,
     querySelector: selector => selector === '.heatmap-scroll' ? null : element(selector),
     querySelectorAll: selector => [element(selector)],
     addEventListener(type, callback) { handlers.set(type, callback); },
@@ -44,7 +46,7 @@ test('Review preserves its layout, recording works before authentication, and si
     document,
     location: { hash: '#insights', hostname: '127.0.0.1' },
     navigator: { onLine: true },
-    history: { replaceState() {} },
+    history: { replaceState(_state, _title, url) { globals.location.hash = url; } },
     window: { addEventListener(type, callback) { windowHandlers.set(type, callback); }, scrollTo() {} },
     Intl: { DateTimeFormat: new Proxy(Intl.DateTimeFormat, { construct(target, args) { formatterCount += 1; return new target(...args); } }) },
     requestAnimationFrame(callback) { callback(); },
@@ -54,6 +56,7 @@ test('Review preserves its layout, recording works before authentication, and si
       cloud = callbacks;
       return {
         writeChanges: changes => new Promise(resolve => writes.push({ changes, resolve })),
+        signIn: () => new Promise(resolve => { finishSignIn = resolve; }),
         signOut: async () => callbacks.onAuth(null),
         stop() {},
       };
@@ -191,15 +194,47 @@ test('Review preserves its layout, recording works before authentication, and si
       await import(`../dist/app.js?launch=${encodeURIComponent(hash)}`);
       assert.equal(element('#breadcrumb').textContent, expected);
     }
+    handlers.get('visibilitychange')();
+    assert.equal(element('#breadcrumb').textContent, 'Review');
     globals.window.matchMedia = query => ({ matches: query === '(display-mode: standalone)', addEventListener() {} });
-    globals.location.hash = '#today';
-    await import('../dist/app.js?legacy-pwa-launch');
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    for (const hash of ['#today', '#insights', '#cards', '']) {
+      globals.location.hash = hash;
+      await import(`../dist/app.js?standalone-launch=${encodeURIComponent(hash)}`);
+      assert.equal(element('#breadcrumb').textContent, 'Cards');
+    }
     click({ view: 'today' });
     assert.equal(element('#breadcrumb').textContent, 'Your day');
+    click({ view: 'insights' });
+    document.hidden = true;
+    handlers.get('visibilitychange')();
+    assert.equal(element('#breadcrumb').textContent, 'Review');
+    document.hidden = false;
+    handlers.get('visibilitychange')();
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.equal(globals.location.hash, '#cards');
+    click({ view: 'insights' });
+    element('#editor').open = true;
+    element('#editor-content').innerHTML = 'A draft survives returning to the PWA.';
+    document.hidden = true;
+    handlers.get('visibilitychange')();
+    document.hidden = false;
+    handlers.get('visibilitychange')();
+    assert.equal(element('#breadcrumb').textContent, 'Review');
+    assert.equal(element('#editor').open, true);
+    assert.equal(element('#editor-content').innerHTML, 'A draft survives returning to the PWA.');
+    element('#editor').open = false;
+    windowHandlers.get('pageshow')({ persisted: true });
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
     delete globals.window.matchMedia;
     globals.navigator.standalone = true;
-    await import('../dist/app.js?legacy-ios-launch');
+    globals.location.hash = '#insights';
+    await import('../dist/app.js?restored-ios-launch');
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    click({ view: 'insights' });
+    document.hidden = true;
+    handlers.get('visibilitychange')();
+    document.hidden = false;
+    handlers.get('visibilitychange')();
     assert.equal(element('#breadcrumb').textContent, 'Cards');
     delete globals.navigator.standalone;
 
@@ -225,6 +260,19 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#view-content').inert, false);
     assert.match(element('#account-strip').innerHTML, /Sign in to sync/);
     assert.match(element('#view-content').innerHTML, /class="entry-title">Coffee<\/h3>/);
+    globals.navigator.standalone = true;
+    click({ view: 'insights' });
+    click({ action: 'sign-in' });
+    assert.equal(typeof finishSignIn, 'function');
+    document.hidden = true;
+    handlers.get('visibilitychange')();
+    document.hidden = false;
+    handlers.get('visibilitychange')();
+    assert.equal(element('#breadcrumb').textContent, 'Review');
+    finishSignIn();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    delete globals.navigator.standalone;
+    click({ view: 'today' });
     element('#editor').open = true;
     element('#editor-content').innerHTML = 'An unfinished note stays here.';
     cloud.onAuth({ uid: 'timeline-test', displayName: 'Timeline test' });
