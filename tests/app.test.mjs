@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { dateKey, DEFAULT_CARDS } from '../dist/model.js';
 
-test('Review preserves its layout and signed-in card clicks update the timeline immediately.', async () => {
+test('Review preserves its layout, recording works before authentication, and sign-out clears instant startup.', async () => {
   let cloud;
   const writes = [];
   const cached = new Map();
@@ -53,6 +53,7 @@ test('Review preserves its layout and signed-in card clicks update the timeline 
       cloud = callbacks;
       return {
         writeChanges: changes => new Promise(resolve => writes.push({ changes, resolve })),
+        signOut: async () => callbacks.onAuth(null),
         stop() {},
       };
     },
@@ -181,6 +182,45 @@ test('Review preserves its layout and signed-in card clicks update the timeline 
     await new Promise(resolve => setTimeout(resolve, 0));
     cloud.onData({ ...remote, entries: [saved] });
     assert.doesNotMatch(element('#view-content').innerHTML, /class="timeline-item"/);
+
+    globals.location.hash = '#today';
+    await import('../dist/app.js?instant-startup');
+    assert.equal(element('#workspace').hidden, false);
+    assert.equal(element('#login-screen').hidden, true);
+    assert.equal(element('#view-content').inert, false);
+    assert.match(element('#view-content').innerHTML, /class="quick-card"/);
+    const previousWrites = writes.length;
+    click({ record: 'coffee' });
+    assert.match(element('#view-content').innerHTML, /class="entry-title">Coffee<\/h3>/);
+    assert.equal(writes.length, previousWrites);
+    const offline = JSON.parse(cached.get('daily-karte.v1.user.timeline-test'));
+    assert.equal(offline.pending.entries.upsert.length, 1);
+
+    cloud.onAuth(null);
+    cloud.onStatus({ kind: 'signed-out', message: 'Please sign in.' });
+    assert.equal(element('#workspace').hidden, false);
+    assert.equal(element('#view-content').inert, false);
+    assert.match(element('#account-strip').innerHTML, /Sign in to sync/);
+    assert.match(element('#view-content').innerHTML, /class="entry-title">Coffee<\/h3>/);
+    element('#editor').open = true;
+    element('#editor-content').innerHTML = 'An unfinished note stays here.';
+    cloud.onAuth({ uid: 'timeline-test', displayName: 'Timeline test' });
+    assert.equal(element('#editor').open, true);
+    assert.equal(element('#editor-content').innerHTML, 'An unfinished note stays here.');
+    assert.equal(writes.length, previousWrites);
+    element('#editor').open = false;
+    cloud.onData(remote);
+    assert.equal(writes.length, previousWrites + 1);
+    assert.equal(writes.at(-1).changes.entries.upsert[0].cardId, 'coffee');
+    writes.at(-1).resolve();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    click({ action: 'sign-out' });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(element('#workspace').hidden, true);
+    assert.equal(cached.get('daily-karte.v1.last-account'), '');
+    await import('../dist/app.js?after-sign-out');
+    assert.equal(element('#workspace').hidden, true);
+    assert.equal(element('#login-screen').hidden, false);
   } finally {
     hooks.deregister();
     for (const [name, descriptor] of previous) {

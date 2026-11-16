@@ -96,6 +96,41 @@ assert.equal(store.pending, false);
 await store.signOut();
 assert.equal(store.data.entries.length, 0);
 store.stop();
+
+const values = new Map();
+const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+let resume;
+let restoredWrites = 0;
+const remembered = () => core.createAccountStore({
+  guest: { cards: [], entries: [] }, storage, rememberAccount: true,
+  connect: async callbacks => {
+    resume = callbacks;
+    return { signIn: async () => {}, signOut: async () => callbacks.onAuth(null), stop() {}, writeChanges: async () => { restoredWrites += 1; } };
+  },
+});
+const signedIn = remembered();
+await signedIn.start();
+resume.onAuth({ uid: 'remembered-user' });
+resume.onData({ cards: [card], entries: [] });
+signedIn.stop();
+const reopened = remembered();
+assert.equal(reopened.ready, true);
+assert.equal(reopened.authenticated, false);
+assert.equal(reopened.restoring, true);
+reopened.data.entries.push(first);
+reopened.persist();
+assert.equal(reopened.pending, true);
+assert.equal(restoredWrites, 0);
+await reopened.start();
+resume.onAuth({ uid: 'remembered-user' });
+resume.onData({ cards: [card], entries: [] });
+await new Promise(resolve => setTimeout(resolve, 0));
+assert.equal(restoredWrites, 1);
+assert.equal(reopened.authenticated, true);
+assert.equal(reopened.pending, false);
+await reopened.signOut();
+assert.equal(remembered().user, null);
+reopened.stop();
 `);
   run(process.execPath, ['consumer.mjs']);
 
@@ -112,7 +147,11 @@ diffState(state, state).entries.upsert[0]?.note.toUpperCase();
 weekBlockLayout(summarizeWeek(state.entries, '2026-11-13').blocks).columns[0].runs[0]?.activity?.name.toUpperCase();
 const batches: number[][] = partitionWrites([1, 2, 3], 2);
 const adapter: CloudAdapter = { signIn: async () => {}, signOut: async () => {}, writeChanges: async changes => { changes.entries.upsert[0]?.note.toUpperCase(); }, stop() {} };
-createAccountStore({ guest: state, connect: async callbacks => { callbacks.onData?.(state); return adapter; } });
+const accountStore = createAccountStore({ guest: state, rememberAccount: true, connect: async callbacks => { callbacks.onData?.(state); return adapter; } });
+const authenticated: boolean = accountStore.authenticated;
+const restoring: boolean = accountStore.restoring;
+void authenticated;
+void restoring;
 // @ts-expect-error The duration must use minutes rather than text.
 createEntry(DEFAULT_CARDS[0], { duration: '30' });
 // @ts-expect-error The account store requires an explicit connector.

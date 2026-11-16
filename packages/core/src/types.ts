@@ -137,6 +137,7 @@ export interface StorageAdapter {
 export interface AccountOptions {
   guest: State;
   storage?: StorageAdapter;
+  rememberAccount?: boolean;
   connect: (callbacks: CloudCallbacks) => Promise<CloudAdapter>;
   onChange?: (event: { accountChanged: boolean }) => void;
   onStatus?: (status: SyncStatus) => void;
@@ -148,6 +149,8 @@ export interface AccountStore {
   readonly status: SyncStatus;
   readonly ready: boolean;
   readonly connected: boolean;
+  readonly authenticated: boolean;
+  readonly restoring: boolean;
   readonly pending: boolean;
   readonly warning: string;
   setWritesPaused(paused: boolean): void;

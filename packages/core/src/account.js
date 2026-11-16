@@ -3,6 +3,7 @@ import { isValidState, isValidChanges } from './schema.js';
 
 const copy = value => JSON.parse(JSON.stringify(value));
 const emptyState = () => ({ cards: [], entries: [] });
+const LAST_ACCOUNT_KEY = 'daily-karte.v1.last-account';
 
 function defaultStorage() {
   try {
@@ -18,7 +19,7 @@ function defaultStorage() {
 }
 
 /** @param {import('./types.js').AccountOptions} options @returns {import('./types.js').AccountStore} */
-export function createAccountStore({ guest, storage, onChange = () => {}, onStatus = () => {}, connect }) {
+export function createAccountStore({ guest, storage, rememberAccount = false, onChange = () => {}, onStatus = () => {}, connect }) {
   if (typeof connect !== 'function') throw new TypeError('A cloud connector is required.');
   if (!isValidState(guest)) throw new TypeError('The guest state is invalid.');
   if (storage === undefined) storage = defaultStorage();
@@ -31,6 +32,11 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
   let adapter = null;
   let ready = false;
   let remoteReady = false;
+  let authenticated = false;
+  let restoring = true;
+  let signingOut = false;
+  let starting = null;
+  let connection = 0;
   let epoch = 0;
   let inFlight = null;
   let writesPaused = false;
@@ -77,11 +83,65 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     }
   }
 
+  function rememberedAccount() {
+    if (!rememberAccount) return null;
+    try {
+      const value = JSON.parse(storage.getItem(LAST_ACCOUNT_KEY));
+      if (!value || value.version !== 1 || Object.keys(value).length !== 4
+        || typeof value.uid !== 'string' || !value.uid.length || value.uid.length > 128
+        || ![value.displayName, value.email].every(field => field === null || typeof field === 'string')) return null;
+      return { uid: value.uid, displayName: value.displayName, email: value.email };
+    } catch {
+      return null;
+    }
+  }
+
+  function remember(nextUser) {
+    if (!rememberAccount) return;
+    try {
+      storage.setItem(LAST_ACCOUNT_KEY, nextUser ? JSON.stringify({
+        version: 1, uid: nextUser.uid,
+        displayName: nextUser.displayName ?? null, email: nextUser.email ?? null,
+      }) : '');
+    } catch {
+      cacheWarning = 'This device could not remember your account. Instant reopening may be unavailable.';
+    }
+  }
+
+  const remembered = rememberedAccount();
+  if (remembered) {
+    const cached = readCache(remembered.uid);
+    if (cached.exists) {
+      user = remembered;
+      data = cached.data;
+      pending = cached.pending;
+      baseline = copy(data);
+      ready = true;
+    }
+  }
+
   function onAuth(nextUser) {
     epoch += 1;
     inFlight = null;
-    ready = false;
     remoteReady = false;
+    authenticated = Boolean(nextUser);
+    restoring = false;
+    // The remembered identity only unlocks local data. The connector authorizes cloud access.
+    if (!nextUser && user && ready && !signingOut && rememberedAccount()?.uid === user.uid) {
+      notify({ kind: 'auth-required', message: 'Sign in to sync. Your records are saved on this device, and you can keep recording.' });
+      onChange({ accountChanged: false });
+      return;
+    }
+    const sameAccount = nextUser && user?.uid === nextUser.uid && ready && !protectedCaches.has(user.uid);
+    const accountChanged = user?.uid !== nextUser?.uid;
+    if (sameAccount) {
+      user = nextUser;
+      remember(user);
+      notify({ kind: 'loading', message: 'The cloud is connecting. You can record on this device while you wait.' });
+      onChange({ accountChanged: false });
+      return;
+    }
+    ready = false;
     user = nextUser;
     confirmed = emptyChanges();
     lastRemote = emptyState();
@@ -92,6 +152,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       pending = cached.pending;
       baseline = copy(data);
       ready = cached.exists;
+      remember(user);
       notify({ kind: 'loading', message: ready ? 'The cloud is connecting. You can record on this device while you wait.' : 'Your cloud records are loading.' });
     } else {
       data = guest;
@@ -99,11 +160,11 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       pending = emptyChanges();
       notify({ kind: 'signed-out', message: 'You can sign in to keep recording across devices.' });
     }
-    onChange({ accountChanged: true });
+    onChange({ accountChanged });
   }
 
   function onData(remote) {
-    if (!user) return;
+    if (!user || !authenticated || signingOut) return;
     if (!isValidState(remote)) {
       remoteReady = false;
       notify({ kind: 'error', message: 'Cloud records could not be read safely. Existing records are unchanged. Please retry syncing.' });
@@ -124,7 +185,7 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
   }
 
   async function flush() {
-    if (writesPaused || !user || !remoteReady || !adapter || inFlight || !hasChanges(pending)) return;
+    if (writesPaused || signingOut || !user || !authenticated || !remoteReady || !adapter || inFlight || !hasChanges(pending)) return;
     const currentEpoch = epoch;
     const sent = copy(pending);
     const marker = {};
@@ -157,22 +218,48 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
     get status() { return status; },
     get ready() { return ready; },
     get connected() { return remoteReady; },
+    get authenticated() { return authenticated; },
+    get restoring() { return restoring; },
     get pending() { return hasChanges(pending); },
     get warning() { return cacheWarning; },
     setWritesPaused(paused) {
       writesPaused = Boolean(paused);
       if (!writesPaused) void flush();
     },
-    async start() {
-      adapter = await connect({
-        onAuth,
-        onData,
-        onStatus: next => {
-          if (next.kind === 'ready' || next.kind === 'saving') return;
-          notify(next);
-        },
-      });
-      await flush();
+    start() {
+      if (starting) return starting;
+      adapter?.stop();
+      adapter = null;
+      epoch += 1;
+      inFlight = null;
+      const currentConnection = ++connection;
+      authenticated = false;
+      remoteReady = false;
+      restoring = true;
+      const active = () => currentConnection === connection;
+      starting = (async () => {
+        const nextAdapter = await connect({
+          onAuth: next => { if (active()) onAuth(next); },
+          onData: next => { if (active()) onData(next); },
+          onStatus: next => {
+            if (!active() || next.kind === 'ready' || next.kind === 'saving') return;
+            if (next.kind === 'error' || next.kind === 'local') restoring = false;
+            if (next.kind === 'signed-out' && user && !authenticated) {
+              notify({ kind: 'auth-required', message: 'Sign in to sync. Your records are saved on this device, and you can keep recording.' });
+            } else notify(next);
+          },
+        });
+        if (!active()) { nextAdapter.stop(); return; }
+        adapter = nextAdapter;
+        void flush();
+      })().catch(error => {
+        if (active()) {
+          restoring = false;
+          notify({ kind: 'error', message: 'Cloud sync could not connect. Your saved records remain available on this device. Please retry later.' });
+        }
+        throw error;
+      }).finally(() => { starting = null; });
+      return starting;
     },
     persist() {
       if (!user || !ready) throw new Error('Please wait for your cloud records to load.');
@@ -187,10 +274,29 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       await adapter.signIn();
     },
     async signOut() {
+      if (starting) await starting;
       if (!adapter) return;
-      await adapter.signOut();
+      const previousUser = user;
+      if (rememberAccount) {
+        try {
+          if (storage.getItem(LAST_ACCOUNT_KEY)) storage.setItem(LAST_ACCOUNT_KEY, '');
+        } catch {
+          throw new Error('This device could not clear the remembered account. Please allow browser storage and try signing out again.');
+        }
+      }
+      signingOut = true;
+      try {
+        await adapter.signOut();
+        if (user) onAuth(null);
+      } catch (error) {
+        if (previousUser) remember(previousUser);
+        throw error;
+      } finally {
+        signingOut = false;
+      }
     },
     async retry() {
+      if (starting) return starting;
       if (!remoteReady) {
         adapter?.stop();
         adapter = null;
@@ -204,6 +310,6 @@ export function createAccountStore({ guest, storage, onChange = () => {}, onStat
       this.persist();
       onChange({ accountChanged: false });
     },
-    stop() { epoch += 1; adapter?.stop(); },
+    stop() { epoch += 1; connection += 1; authenticated = false; remoteReady = false; adapter?.stop(); },
   };
 }

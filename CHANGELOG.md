@@ -311,3 +311,29 @@ Wei requested that all necessary work be committed and pushed to the Daily Karte
 All 96 Web and core tests and all 39 Raycast tests passed in this session. Repository lint, JavaScript syntax checks, generated-file and dependency-boundary checks, Raycast type checks, and Raycast lint passed. The architecture introduction now reflects the completed native implementation and Wei's successful account-loading check. Existing machine-specific changes in .firebaserc.example and dist/site-config.js remain outside the commit. The staged source tree will be checked against the public-release allowlist before the normal main-branch push.
 
 The actual staged source snapshot passed the release check for 124 reviewed files, and the Web release output matched its pinned npm dependency. The commit includes 41 reviewed source files and excludes both local Firebase binding files.
+
+## Instant PWA startup · 2026-11-16
+
+Wei requested immediate recording while Google authentication restores in the background. The plan was to restore the last account's validated local cache before connecting Firebase, retain each account's pending changes, and offer sign-in recovery without hiding the workspace.
+
+The Web client now opts into remembered-account startup through the shared core. The store restores local cards, records, and pending changes synchronously and distinguishes the local account from authenticated cloud access. Recording and editing remain available during authentication and after session expiry. Cloud writes wait for matching authentication and remote data. Reauthentication preserves the active editor and in-memory changes. Switching accounts keeps their outboxes separate, and sign-out clears the remembered account while retaining its offline backup. Connection attempts ignore stale callbacks, and neither startup nor sign-out waits for background writes to finish. The service-worker shell version and application revision were refreshed.
+
+All 106 Web and core tests, ESLint, JavaScript syntax checks, generated-file checks, dependency-boundary checks, and the whitespace diff check passed. A temporary standalone package validation passed its file checks, installation, runtime checks, and TypeScript checks without replacing the existing release artifacts. The UI regression uses a DOM substitute and simulated authentication. Browser rendering, live Google authentication, and real-device startup remain unverified.
+
+The generated Web output currently uses the local core. The published npm package and deployed PWA have not changed. Releasing this behavior requires a new shared-core publication and updated client dependency pins. Existing local Firebase binding changes remain untouched.
+
+## Shared-core 0.1.1 release preparation · 2026-11-16
+
+Wei authorized completing the npm release and PWA deployment. The plan was to publish a verified 0.1.1 core, update both clients from the registry, restore the npm-backed Web output, deploy Hosting, and publish the tagged source release.
+
+The private application and shared core now use version 0.1.1, and both client manifests pin that core version. The Web version label, dependency notice, architecture guide, and release procedure describe the new release. Package-consumer validation now exercises remembered-account startup and its public TypeScript properties. The full package gate passed all 106 Web and core tests and its standalone package checks. The clean public-source snapshot passed all 124 reviewed-file checks. Raycast type checks, lint, all 39 tests, and the distribution build passed against its previously installed dependency. Firebase Hosting access was verified for the existing site.
+
+npm accepted the verified daily-karte-0.1.1.tgz after Wei completed login and publication authorization. Registry visibility and exact integrity verification remain pending processing. The client lockfiles, registry-backed client checks, Hosting deployment, and tagged source release will follow once npm exposes the accepted version. Existing local Firebase binding changes remain outside the source release.
+
+## Shared-core 0.1.1 publication and PWA deployment · 2026-11-16
+
+npm now exposes daily-karte@0.1.1, and its registry integrity matches the exact verified tarball. Both clients installed the public registry release and updated their independent lockfiles. The Web output was rebuilt from the installed npm dependency, and its provenance records version 0.1.1 and the matching integrity.
+
+All 106 Web and core tests passed against the npm-backed Web output. Repository lint, syntax checks, generated-file checks, and dependency boundaries passed. Raycast type checks, lint, all 39 tests, the distribution build, and official Store lint passed with the published 0.1.1 dependency. Firebase deployed Hosting for the existing site without changing Firestore rules. Public HTTP checks confirmed that index.html, core-release.json, sw.js, account-core.js, account.js, and app.js exactly match the validated local release.
+
+The release documentation now describes the deployed version and the first opening needed to establish remembered startup. The source is ready for commit and tagging as v0.1.1. Browser verification could not start because the browser access host is unavailable. Live Google authentication, physical-device startup, and native Raycast interactions remain unverified in this release session. Existing local Firebase binding changes remain outside the source release.

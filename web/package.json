@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "daily-karte": "0.1.0"
+    "daily-karte": "0.1.1"
   }
 }

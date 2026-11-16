@@ -56,7 +56,7 @@ The default production URL is `https://<your-project-id>.web.app`. This source r
 
 ## Verify access before storing personal data
 
-- You confirm that the initial page shows Google sign-in and the separate guest option.
+- You confirm that a new or explicitly signed-out device shows Google sign-in and the separate guest option.
 - You confirm that a signed-out client cannot read or write account documents.
 - You confirm that one account cannot read or write another account's documents.
 - You confirm that signed-in records synchronize between two devices using the same account.

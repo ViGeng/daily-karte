@@ -1,77 +1,68 @@
-# Publish the first npm package
+# Publish a shared-core release
 
-The initial package, `daily-karte@0.1.0`, was published on November 13, 2026. Its registry integrity matched the verified tarball, and a separate project installed it from npm and passed an activity API smoke check. The source lives in `packages/core`, and the repository root remains a private application package. Publishing the core does not deploy the website or publish the Raycast extension.
+The shared package lives in `packages/core`, and the repository root remains a private application package. The initial version, `daily-karte@0.1.0`, was published on November 13, 2026. Version 0.1.1 adds optional startup from the last account's validated local cache. Publishing the core does not deploy the website or publish the Raycast extension.
 
-The procedure below records the initial release. Future releases must use a new version and its newly verified tarball. Version `0.1.0` is already published and must not be submitted again.
+## Prepare and verify the version
 
-## Verify the release
+Maintainers select an unused version and update the core manifest, the private root package and lockfile, both client dependency pins, and the Web version label. They update the current documentation and append release progress to `CHANGELOG.md`. Existing published versions must never be reused.
 
-You need Node.js 24 or newer and npm to run the repository checks. From the repository root, run these commands.
+The release requires Node.js 24 or newer. Maintainers build the current source before running the package gate.
 
 ```sh
-npm ci --ignore-scripts
+npm run build:web:local
 npm run check:package
 ```
 
-The release gate validates the application and generated browser modules. It then checks the package in a separate consumer.
+The gate creates and verifies the exact package that will be published.
 
-- It creates the npm tarball and checks its exact file list.
-- It installs the tarball outside the repository.
-- It verifies JavaScript behavior and TypeScript declarations.
-- It saves the verified tarball and its integrity information under `.artifacts/`.
+- It checks the application, generated modules, and meaningful behavior tests.
+- It checks the tarball's exact file list and installs it outside the repository.
+- It verifies JavaScript behavior and TypeScript declarations, including remembered-account startup.
+- It saves the verified tarball and integrity metadata under `.artifacts/`.
 
-The tarball contains the compiled shared modules and their generated declarations, plus package metadata and documentation. It includes the license. It contains no web configuration or Raycast files. The public-source check is separate and can reject a checkout with local Firebase bindings even when the npm package is clean.
+The package contains compiled shared modules, generated declarations, metadata, documentation, and the license. It contains no Web project configuration or Raycast files. Maintainers validate a separate clean source snapshot when local Firebase bindings prevent the public-source check from passing.
 
-## Publish from your account
+## Publish the verified tarball
 
-You perform npm sign-in and publication in your own terminal. The agent does not need your npm credentials or authentication files.
-
-Your npm account must have two-factor authentication enabled for interactive publishing. A successful `npm login` alone does not satisfy this publishing requirement. You can enable 2FA in the npm website's account settings and configure a supported WebAuthn method, such as Touch ID. [npm documents the setup and publishing requirement](https://docs.npmjs.com/configuring-two-factor-authentication/).
+The authorized publisher uses npm's existing authentication. The agent does not need to read credentials or authentication files. Any required sign-in, browser authorization, or two-factor authentication stays with the account owner.
 
 ```sh
-npm login --registry=https://registry.npmjs.org/
-npm view daily-karte name --registry=https://registry.npmjs.org/
+npm publish ./.artifacts/daily-karte-0.1.1.tgz --access public --registry=https://registry.npmjs.org/
 ```
 
-An npm `E404` response means that the registry did not find the name. It does not reserve the name or guarantee that npm will accept it. If the name exists when you publish, stop and choose a scoped name owned by your npm account. Update the package manifest and consumer checks before publishing under a different name.
-
-After the checks pass and the name is still available, publish the verified tarball.
+This command publishes the exact bytes checked by the gate. A source or package-metadata change requires a new gate run before publication. If npm accepts the publication but reports processing, maintainers wait for registry verification rather than submitting another publish.
 
 ```sh
-npm publish ./.artifacts/daily-karte-0.1.0.tgz --access public --registry=https://registry.npmjs.org/
+npm view daily-karte@0.1.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
-Complete any browser sign-in or two-factor authentication requested by npm. The tarball command publishes the exact bytes checked by the release gate. If you change the source or metadata after checking, rerun `npm run check:package` before publishing.
+The registry version must be `0.1.1`, and its integrity must match `.artifacts/npm-package.json`. npm's two-factor requirements and account setup are documented in its [official guide](https://docs.npmjs.com/configuring-two-factor-authentication/).
 
-If npm rejects the command with `E403` and requests 2FA, complete account setup before retrying. If npm instead accepts the command and reports that the package is being processed, wait for registry verification. The package version can temporarily return `E404` during processing. You should not submit another publish while that accepted release is processing.
+## Update and validate both clients
 
-## Verify publication
+After publication, maintainers install the exact registry release in each client. These commands update their independent lockfiles.
 
 ```sh
-npm view daily-karte@0.1.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm --prefix web install --save-exact daily-karte@0.1.1 --ignore-scripts
+npm --prefix raycast install --save-exact daily-karte@0.1.1 --ignore-scripts
+npm --prefix raycast run check
+npm --prefix raycast run lint
+npm --prefix raycast test
+npm --prefix raycast run build
+npm run build:web
+npm run check:web:release
 ```
 
-The version should be `0.1.0`. Compare the registry integrity value with `integrity` in `.artifacts/npm-package.json`.
+The release Web build uses the installed npm package and records its registry integrity in `dist/core-release.json`. Local-core checks and tests regenerate development output, so maintainers restore the npm-backed Web build after those checks and before deployment.
 
-Clients can then install the published version with this command.
+## Deploy the frontend
+
+The existing deployment binding must remain intact. A frontend-only release deploys Hosting without changing database rules.
 
 ```sh
-npm install --save-exact daily-karte@0.1.0
+npx firebase-tools deploy --only hosting
 ```
 
-The Raycast implementation remains paused. When development resumes, it should import the published package instead of copying the shared modules. Future clients should follow the same dependency pattern.
+Maintainers verify the public version label, service-worker revision, and core provenance after deployment. They distinguish simulated authentication checks from live Google sign-in and real-device tests. Existing PWA installations can use the app's update action to load the new shell.
 
-## Maintain later releases
-
-Maintainers edit `packages/core/src` and regenerate browser modules with `npm run build:core`. They do not edit the generated browser modules directly. A consistency check in CI detects drift. The website keeps static, local module imports and requires no CDN dependency on npm.
-
-Maintainers must complete these steps for the next release.
-
-- They update the version in `packages/core/package.json`.
-- They append the behavior changes to `CHANGELOG.md`.
-- They rerun the release gate.
-- They publish the newly verified tarball.
-
-npm does not allow a published name and version combination to be reused. Clients should initially pin an exact version.
-
-The existing PolyForm Noncommercial license remains in effect. Publishing to npm does not change the commercial-use terms or establish Raycast Store approval.
+The PolyForm Noncommercial license remains in effect. Publishing the core does not change commercial-use terms or establish Raycast Store approval.

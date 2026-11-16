@@ -1,6 +1,6 @@
 {
   "name": "daily-karte",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared activity models, validation, summaries, and synchronization for Daily Karte clients.",
   "type": "module",
   "main": "./lib/index.js",

@@ -33,6 +33,8 @@ When developing an unpublished core change, maintainers use `npm run build:web:l
 
 The shared module copies in `dist` are deployment artifacts. They do not have a separate implementation or maintenance history. The Web application uses local files so that its static hosting and offline shell do not depend on an npm CDN.
 
+The current Web source enables the core's optional remembered-account startup. The core restores a validated local account cache before the browser connects Firebase. It distinguishes that local identity from authenticated cloud access, preserves local edits through session restoration, and keeps each outbox tied to its account. The browser displays sign-in recovery without hiding the workspace. Version 0.1.1 includes this behavior, and both clients pin that shared release.
+
 ## Develop the Raycast extension
 
 The extension declares an exact dependency on the public `daily-karte` package. Its independent `package-lock.json` resolves that dependency from npm. Its shared activity types also come from the package. The extension must use the package's public exports rather than importing repository internals or creating another core copy.
@@ -54,7 +56,7 @@ An unchanged recording form retains its exact attempted result across client ins
 
 ## Change the core version deliberately
 
-The normal Web build and Raycast both use their pinned npm release. A separate local Web build supports unpublished core development. Both clients currently pin `daily-karte@0.1.0`.
+The normal Web build and Raycast both use their pinned npm release. A separate local Web build supports unpublished core development. Both clients currently pin `daily-karte@0.1.1`.
 
 After a core behavior change, maintainers must complete the release and client update together.
 

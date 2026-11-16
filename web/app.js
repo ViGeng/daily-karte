@@ -34,7 +34,6 @@ function loadState() {
 
 const personal = { cards: cloneCards(), entries: [] };
 let personalLoaded = false;
-let previousAccountUid = null;
 let loginRequested = false;
 let signInBusy = false;
 let loginError = '';
@@ -42,7 +41,7 @@ const account = createAccountStore({
   guest: personal,
   onChange: ({ accountChanged }) => {
     if (accountChanged) {
-      const leavingDemo = (account.user && loginRequested) || (!account.user && previousAccountUid);
+      const leavingDemo = (account.user && loginRequested) || !account.user;
       if (!demo || leavingDemo) {
         dismissToast();
         if ($('#editor').open) closeEditor();
@@ -59,7 +58,6 @@ const account = createAccountStore({
         account.setWritesPaused(false);
       }
       loginError = '';
-      previousAccountUid = account.user?.uid ?? null;
     }
     render();
   },
@@ -263,9 +261,9 @@ function renderAccount() {
   const local = status.kind === 'local';
   const label = demo ? 'Guest session' : local ? 'Your records are on this device' : user ? (user.displayName || user.email || 'Your account') : 'Your records can travel with you';
   const offline = globalThis.navigator?.onLine === false;
-  const message = demo ? 'Sample records reset when you leave or refresh.' : (account.warning || (offline ? 'You are offline. Changes will sync when you reconnect.' : status.kind === 'ready' ? 'Synced' : status.message));
-  const signInAvailable = !local && !user && status.kind !== 'connecting';
-  setMarkup('#account-strip', `<div class="account-copy">${icon(user ? 'shield' : 'leaf')}<div><strong>${escapeHTML(label)}</strong><p>${escapeHTML(message)}</p></div></div><div class="account-actions">${signInAvailable ? '<button data-action="sign-in">Continue with Google</button>' : ''}${user && !demo && personal.entries.length && account.connected ? '<button data-action="import-guest">Import local records</button>' : ''}${user && status.kind === 'error' ? '<button data-action="retry-sync">Retry sync</button>' : ''}${user ? '<button data-action="sign-out">Sign out</button>' : ''}</div>`);
+  const message = demo ? 'Sample records reset when you leave or refresh.' : (account.warning || (status.kind === 'auth-required' ? status.message : offline ? 'You are offline. Changes will sync when you reconnect.' : status.kind === 'ready' ? 'Synced' : status.message));
+  const signInAvailable = !local && !(account.authenticated ?? Boolean(user)) && !account.restoring && status.kind !== 'connecting';
+  setMarkup('#account-strip', `<div class="account-copy">${icon(user ? 'shield' : 'leaf')}<div><strong>${escapeHTML(label)}</strong><p>${escapeHTML(message)}</p></div></div><div class="account-actions">${signInAvailable ? `<button data-action="sign-in" ${signInBusy ? 'disabled' : ''}>${user ? 'Sign in to sync' : 'Continue with Google'}</button>` : ''}${user && !demo && personal.entries.length && account.connected ? '<button data-action="import-guest">Import local records</button>' : ''}${user && status.kind === 'error' ? '<button data-action="retry-sync">Retry sync</button>' : ''}${user ? '<button data-action="sign-out">Sign out</button>' : ''}</div>`);
   strip.dataset.status = offline ? 'offline' : status.kind;
   const loading = Boolean(user && !account.ready && !demo);
   $('#view-content').inert = loading;
@@ -293,7 +291,7 @@ async function accountAction(action) {
       }
       loginRequested = true;
       signInBusy = true;
-      renderAccess();
+      renderAccount();
       await account.signIn();
     }
     if (action === 'sign-out') await account.signOut();
@@ -306,12 +304,12 @@ async function accountAction(action) {
     if (action === 'sign-in') {
       loginRequested = false;
       loginError = error.message || 'Sign-in is unavailable. Please try again later.';
-      renderAccess();
-      if (demo) showToast(loginError);
+      renderAccount();
+      if (demo || account.user) showToast(loginError);
     } else showToast(error.message || 'The connection is unavailable. Please try again later.');
   } finally {
     signInBusy = false;
-    renderAccess();
+    renderAccount();
   }
 }
 

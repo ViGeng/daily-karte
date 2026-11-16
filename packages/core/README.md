@@ -1,6 +1,6 @@
 # daily-karte
 
-`daily-karte` provides the shared activity model and synchronization behavior for Daily Karte clients. Version 0.1.0 is prepared for an initial npm release. It has no runtime dependencies and includes TypeScript declarations.
+`daily-karte` provides the shared activity model and synchronization behavior for Daily Karte clients. Version 0.1.1 adds optional instant startup from a remembered account cache. It has no runtime dependencies and includes TypeScript declarations.
 
 The package owns the behavior that clients need to share.
 
@@ -14,10 +14,10 @@ Clients provide their own interface and platform integration. They also provide 
 
 ## Install
 
-After the package is published, you can install the initial version with npm.
+You can install the exact core version with npm.
 
 ```sh
-npm install daily-karte@0.1.0
+npm install daily-karte@0.1.1
 ```
 
 The package uses ES modules. It supports Node.js 22 or newer and modern browsers with `Intl`, Unicode property escapes, and ES2022 support. Importing the package does not start Firebase, access storage, or make network requests.
@@ -101,6 +101,10 @@ The connector receives `onAuth`, `onData`, and `onStatus` callbacks. Its adapter
 The `connect` option is required. The store keeps guest state separate from signed-in state, validates cached and remote data, and maintains queued writes across incoming snapshots.
 
 Storage adapters provide synchronous `getItem(key)` and `setItem(key, value)` methods. The browser defaults to `localStorage` when available. Other clients should supply an adapter that fits their runtime. Account caches are plain JSON, use the `daily-karte.v1.user.<uid>` key format, and remain after sign-out. Each Firebase project should use a separate storage namespace because different projects can reuse user identifiers.
+
+The current source adds an optional `rememberAccount: true` setting. With this setting, the store saves only the account's identifier, display name, and email under `daily-karte.v1.last-account`. It restores a valid local cache synchronously when the store is created. The `user` property then identifies the local account, while `authenticated` remains false until the connector confirms sign-in. The `restoring` property indicates that authentication is still starting. Clients may render and edit when `ready` is true without waiting for `authenticated`.
+
+Cloud snapshots and writes remain blocked until authentication succeeds. The store reconciles pending changes only with that account's remote state. A missing session preserves the remembered account locally and reports `auth-required`, so the client can offer sign-in without blocking recording. Explicit sign-out clears the remembered account and preserves its separate cache and outbox. Other clients retain the original startup behavior unless they enable this setting. These additions are available from version 0.1.1.
 
 The package does not protect a local cache from a person who controls the device. It also does not provide conflict-free collaborative editing. Completely simultaneous edits to one record can still resolve to the last write.
 
