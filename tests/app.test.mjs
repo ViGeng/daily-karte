@@ -82,8 +82,8 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#login-screen').hidden, true);
     assert.equal(element('#workspace').hidden, false);
     assert.match(element('#account-strip').innerHTML, /Guest session/);
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
-    assert.match(element('#view-content').innerHTML, /class="library-card"/);
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
+    assert.match(element('#view-content').innerHTML, /class="quick-card"/);
     click({ view: 'insights' });
     const assertReview = () => {
       const markup = element('#view-content').innerHTML;
@@ -189,7 +189,7 @@ test('Review preserves its layout, recording works before authentication, and si
     cloud.onData({ ...remote, entries: [saved] });
     assert.doesNotMatch(element('#view-content').innerHTML, /class="timeline-item"/);
 
-    for (const [hash, expected] of [['', 'Cards'], ['#missing', 'Cards'], ['#cards', 'Cards'], ['#today', 'Your day'], ['#insights', 'Review']]) {
+    for (const [hash, expected] of [['', 'Your day'], ['#missing', 'Your day'], ['#cards', 'Cards'], ['#today', 'Your day'], ['#insights', 'Review']]) {
       globals.location.hash = hash;
       await import(`../dist/app.js?launch=${encodeURIComponent(hash)}`);
       assert.equal(element('#breadcrumb').textContent, expected);
@@ -200,7 +200,7 @@ test('Review preserves its layout, recording works before authentication, and si
     for (const hash of ['#today', '#insights', '#cards', '']) {
       globals.location.hash = hash;
       await import(`../dist/app.js?standalone-launch=${encodeURIComponent(hash)}`);
-      assert.equal(element('#breadcrumb').textContent, 'Cards');
+      assert.equal(element('#breadcrumb').textContent, 'Your day');
     }
     click({ view: 'today' });
     assert.equal(element('#breadcrumb').textContent, 'Your day');
@@ -210,8 +210,8 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#breadcrumb').textContent, 'Review');
     document.hidden = false;
     handlers.get('visibilitychange')();
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
-    assert.equal(globals.location.hash, '#cards');
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
+    assert.equal(globals.location.hash, '#today');
     click({ view: 'insights' });
     element('#editor').open = true;
     element('#editor-content').innerHTML = 'A draft survives returning to the PWA.';
@@ -224,18 +224,18 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#editor-content').innerHTML, 'A draft survives returning to the PWA.');
     element('#editor').open = false;
     windowHandlers.get('pageshow')({ persisted: true });
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
     delete globals.window.matchMedia;
     globals.navigator.standalone = true;
     globals.location.hash = '#insights';
     await import('../dist/app.js?restored-ios-launch');
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
     click({ view: 'insights' });
     document.hidden = true;
     handlers.get('visibilitychange')();
     document.hidden = false;
     handlers.get('visibilitychange')();
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
     delete globals.navigator.standalone;
 
     globals.location.hash = '';
@@ -243,11 +243,11 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#workspace').hidden, false);
     assert.equal(element('#login-screen').hidden, true);
     assert.equal(element('#view-content').inert, false);
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
-    assert.match(element('#view-content').innerHTML, /class="library-card"/);
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
+    assert.match(element('#view-content').innerHTML, /class="quick-card"/);
     const previousWrites = writes.length;
     click({ record: 'coffee' });
-    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
     click({ view: 'today' });
     assert.match(element('#view-content').innerHTML, /class="entry-title">Coffee<\/h3>/);
     assert.equal(writes.length, previousWrites);

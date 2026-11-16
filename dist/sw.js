@@ -1,4 +1,4 @@
-const CACHE_NAME = 'daily-karte-shell-20261116-3';
+const CACHE_NAME = 'daily-karte-shell-20261116-4';
 const SHELL_FILES = [
   './', './index.html', './app.js', './model.js', './icons.js', './account.js',
   './schema.js', './cloud.js', './sync-state.js', './site-config.js', './pwa.js',

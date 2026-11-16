@@ -353,3 +353,11 @@ Wei reported that the PWA still opened Review. The previous fix redirected only 
 Every standalone launch now selects Cards regardless of its restored route. A personal workspace returning from the background or a saved browser page returns to today's Cards. Open editors, active sign-in popups, and guest sessions keep their current state. Normal browser links still select their requested view. The service-worker cache version and application revision were refreshed.
 
 The revised UI regression fails against the previously deployed app with Review where Cards is expected, and passes against the corrected app. All 106 Web and core tests, lint, syntax checks, generated-file checks, dependency boundaries, whitespace checks, and the npm-backed Web release check passed. The regression covers standalone and iOS restored Review URLs, foreground resumption, saved-page restoration, editor drafts, and sign-in popups. These checks use simulated browser events. Firebase Hosting deployed the correction, and public HTTP checks confirmed that index.html, app.js, sw.js, and manifest.webmanifest match the validated build. Physical-device verification of this correction remains pending.
+
+## Your day is the default PWA view · 2026-11-16
+
+Wei clarified that Your day must be the default. The plan was to align the installed PWA's launch and resume behavior with that view while keeping the existing editor and sign-in protections.
+
+Startup, resume, and guest navigation now use Your day as their shared default. The manifest and home links also point to Your day. Standalone launches that restore Cards or Review open Your day, and a personal workspace returns to the current date on a safe foreground resume. Normal browser links still select their requested view. The service-worker cache version and application revision were refreshed.
+
+All 106 Web and core tests and the release gates passed. The UI tests use simulated browser events and verify Your day for default launches and resumes. Firebase Hosting deployed the change. Public HTTP checks confirmed that the deployed manifest and startup files match the validated build, with ./#today as the launch URL and today as the shared application default. The shared core remains at version 0.1.1.

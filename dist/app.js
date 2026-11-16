@@ -13,6 +13,7 @@ const VIEWS = [
   { id: 'cards', name: 'Cards', icon: 'grid' },
   { id: 'insights', name: 'Review', icon: 'chart' },
 ];
+const DEFAULT_VIEW = 'today';
 const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cloneCards = () => DEFAULT_CARDS.map(card => ({ ...card }));
 let storageAvailable = true;
@@ -69,8 +70,8 @@ let selectedDay = dateKey();
 const initialView = location.hash.slice(1);
 const isStandalone = () => Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches || globalThis.navigator?.standalone);
 const standaloneLaunch = isStandalone();
-let view = !standaloneLaunch && VIEWS.some(item => item.id === initialView) ? initialView : 'cards';
-if (standaloneLaunch && initialView !== 'cards') history.replaceState(null, '', '#cards');
+let view = !standaloneLaunch && VIEWS.some(item => item.id === initialView) ? initialView : DEFAULT_VIEW;
+if (standaloneLaunch && initialView !== DEFAULT_VIEW) history.replaceState(null, '', '#' + DEFAULT_VIEW);
 let reviewYear = Number(selectedDay.slice(0, 4));
 let reviewDayExpanded = false;
 let reviewFullDay = false;
@@ -160,10 +161,10 @@ function toggleDemo() {
     demoState = null;
     selectedDay = dateKey();
   }
-  view = 'cards';
+  view = DEFAULT_VIEW;
   reviewYear = Number(selectedDay.slice(0, 4));
   reviewDayExpanded = false;
-  history.replaceState(null, '', '#cards');
+  history.replaceState(null, '', '#' + DEFAULT_VIEW);
   render();
   if (!demo && !account.user) $('#google-sign-in').focus({ preventScroll: true });
   announce(demo ? 'You entered a guest session. Sample records stay separate from your account.' : account.user ? 'You returned to your records.' : 'You returned to the sign-in page.');
@@ -754,11 +755,11 @@ window.addEventListener('storage', event => {
 function resumeWorkspace() {
   if (document.hidden || $('#editor').open) return;
   if (isStandalone() && !demo && !signInBusy) {
-    view = 'cards';
+    view = DEFAULT_VIEW;
     selectedDay = dateKey();
     reviewYear = Number(selectedDay.slice(0, 4));
     reviewDayExpanded = false;
-    history.replaceState(null, '', '#cards');
+    history.replaceState(null, '', '#' + DEFAULT_VIEW);
   }
   render();
 }
