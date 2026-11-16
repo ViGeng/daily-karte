@@ -108,7 +108,7 @@ test('The install manifest provides in-scope standalone launch and correctly siz
   const manifest = JSON.parse(await readFile(new URL('../dist/manifest.webmanifest', import.meta.url), 'utf8'));
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.scope, './');
-  assert.equal(manifest.start_url, './#today');
+  assert.equal(manifest.start_url, './#cards');
   assert.equal(manifest.icons.length, 2);
   for (const icon of manifest.icons) {
     const png = await readFile(new URL(`../dist/${icon.src}`, import.meta.url));

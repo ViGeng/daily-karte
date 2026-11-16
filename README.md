@@ -12,7 +12,7 @@ The `daily-karte@0.1.1` package is [published on npm](https://www.npmjs.com/pack
 
 The browser release build uses the published npm package pinned by `web/package.json` and its independent lockfile. Its platform code lives in `web`, and `dist` contains the generated deployment output. The Raycast extension pins the same published package with its own lockfile. Its official service configuration is built in, so users only need Google authorization. [`docs/architecture.md`](docs/architecture.md) explains the release build and the separate local-core development build.
 
-The npm-backed Web release 0.1.1 is deployed at [dailykarte.web.app](https://dailykarte.web.app). The public entry page, service worker, startup modules, and core provenance match the validated release files. Automated startup checks use simulated authentication. Live Google sign-in and real-device startup for this release remain unverified.
+The npm-backed Web release 0.1.1 is deployed at [dailykarte.web.app](https://dailykarte.web.app). The public entry page, service worker, startup modules, and core provenance match the validated release files. Automated startup checks use simulated authentication. Wei verified the deployed instant-startup behavior and reported that it works. Broader cross-device testing remains incomplete.
 
 The Raycast Record Activity command displays activity cards in a searchable six-column gallery with square icon tiles, names, and default durations. Its native forms support recording activities and creating or editing cards. The Today command defaults to Timeline and remembers whether you last selected Timeline or By Activity. The separate This Week command displays the current week's calendar across the full content area. It has no day list, statistics sidebar, or explanatory text. Card changes affect future recordings and preserve saved historical details. Saves use version-conditioned atomic commits to protect concurrent edits.
 
@@ -37,7 +37,7 @@ The current source adds instant startup on previously signed-in devices. Once th
 
 Release 0.1.1 includes this startup behavior, and both clients pin the published core with matching registry integrity. A first sign-in, a device without a valid cache, or cleared browser storage still requires the usual account loading. The first opening after upgrading establishes the remembered account for later launches.
 
-The local startup implementation passed all 106 Web and core tests, lint, syntax checks, generated-file checks, and standalone JavaScript and TypeScript package-consumer checks. The UI regression uses a DOM substitute and simulated authentication. Live Google sign-in and real-device startup still require verification.
+The startup implementation passed all 106 Web and core tests, lint, syntax checks, generated-file checks, and standalone JavaScript and TypeScript package-consumer checks. The UI regression uses a DOM substitute and simulated authentication. Wei subsequently verified that the deployed instant-startup behavior works.
 
 The gate checks the application and installs the actual npm tarball into a separate temporary consumer. It validates the file list, runtime behavior, and TypeScript API and saves the reviewed tarball under `.artifacts/`. [`docs/npm-release.md`](docs/npm-release.md) records the publishing procedure. The initial release was published on November 13, 2026. Its registry integrity matches the verified tarball, and installation from npm passed a separate activity API smoke check.
 
@@ -88,6 +88,8 @@ The charts summarize estimated durations for records ending in the selected week
 ## Install and use offline
 
 DailyKarte now includes a PWA manifest, standalone launch settings, and 192-pixel and 512-pixel home-screen icons. Installation requires HTTPS or a localhost preview, and the available installation controls depend on the browser. The app's **Add to home screen** button opens the browser's installation prompt when available. On iPhone and iPad, it explains how to use Safari's Share menu to add the app to the home screen. Installed windows hide the installation button. [MDN describes browser installation requirements](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable).
+
+The PWA opens the Cards tab so activity Record buttons are immediately available. New browser visits without a valid view also open Cards. Existing standalone installations that still launch with the old Your day URL open Cards instead. Your day and Review remain available through navigation, and explicit browser links to those views still work.
 
 After a connected visit finishes caching the app files, you can reopen the interface offline and use guest mode. An already open signed-in workspace can continue using its existing local record cache and sync queue. Google sign-in and cloud startup still need a connection, so reopening offline does not guarantee access to a signed-in workspace. Guest records remain temporary and reset when you leave or refresh.
 

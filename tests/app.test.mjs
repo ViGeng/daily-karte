@@ -43,6 +43,7 @@ test('Review preserves its layout, recording works before authentication, and si
   const globals = {
     document,
     location: { hash: '#insights', hostname: '127.0.0.1' },
+    navigator: { onLine: true },
     history: { replaceState() {} },
     window: { addEventListener(type, callback) { windowHandlers.set(type, callback); }, scrollTo() {} },
     Intl: { DateTimeFormat: new Proxy(Intl.DateTimeFormat, { construct(target, args) { formatterCount += 1; return new target(...args); } }) },
@@ -78,7 +79,8 @@ test('Review preserves its layout, recording works before authentication, and si
     assert.equal(element('#login-screen').hidden, true);
     assert.equal(element('#workspace').hidden, false);
     assert.match(element('#account-strip').innerHTML, /Guest session/);
-    assert.match(element('#view-content').innerHTML, /class="quick-card"/);
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.match(element('#view-content').innerHTML, /class="library-card"/);
     click({ view: 'insights' });
     const assertReview = () => {
       const markup = element('#view-content').innerHTML;
@@ -158,6 +160,7 @@ test('Review preserves its layout, recording works before authentication, and si
     cloud.onAuth({ uid: 'timeline-test', displayName: 'Timeline test' });
     const remote = { cards: DEFAULT_CARDS.map(card => ({ ...card })), entries: [] };
     cloud.onData(remote);
+    click({ view: 'today' });
     click({ record: 'breakfast' });
     const assertRecorded = () => {
       assert.match(element('#view-content').innerHTML, /class="entry-title">Breakfast<\/h3>/);
@@ -183,14 +186,34 @@ test('Review preserves its layout, recording works before authentication, and si
     cloud.onData({ ...remote, entries: [saved] });
     assert.doesNotMatch(element('#view-content').innerHTML, /class="timeline-item"/);
 
+    for (const [hash, expected] of [['', 'Cards'], ['#missing', 'Cards'], ['#cards', 'Cards'], ['#today', 'Your day'], ['#insights', 'Review']]) {
+      globals.location.hash = hash;
+      await import(`../dist/app.js?launch=${encodeURIComponent(hash)}`);
+      assert.equal(element('#breadcrumb').textContent, expected);
+    }
+    globals.window.matchMedia = query => ({ matches: query === '(display-mode: standalone)', addEventListener() {} });
     globals.location.hash = '#today';
+    await import('../dist/app.js?legacy-pwa-launch');
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    click({ view: 'today' });
+    assert.equal(element('#breadcrumb').textContent, 'Your day');
+    delete globals.window.matchMedia;
+    globals.navigator.standalone = true;
+    await import('../dist/app.js?legacy-ios-launch');
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    delete globals.navigator.standalone;
+
+    globals.location.hash = '';
     await import('../dist/app.js?instant-startup');
     assert.equal(element('#workspace').hidden, false);
     assert.equal(element('#login-screen').hidden, true);
     assert.equal(element('#view-content').inert, false);
-    assert.match(element('#view-content').innerHTML, /class="quick-card"/);
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    assert.match(element('#view-content').innerHTML, /class="library-card"/);
     const previousWrites = writes.length;
     click({ record: 'coffee' });
+    assert.equal(element('#breadcrumb').textContent, 'Cards');
+    click({ view: 'today' });
     assert.match(element('#view-content').innerHTML, /class="entry-title">Coffee<\/h3>/);
     assert.equal(writes.length, previousWrites);
     const offline = JSON.parse(cached.get('daily-karte.v1.user.timeline-test'));

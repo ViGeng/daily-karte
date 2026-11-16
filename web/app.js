@@ -66,7 +66,12 @@ const account = createAccountStore({
 let demo = false;
 let demoState = null;
 let selectedDay = dateKey();
-let view = VIEWS.some(item => item.id === location.hash.slice(1)) ? location.hash.slice(1) : 'today';
+const initialView = location.hash.slice(1);
+// Existing installations may retain the old manifest launch URL.
+const legacyPwaLaunch = initialView === 'today'
+  && (window.matchMedia?.('(display-mode: standalone)')?.matches || globalThis.navigator?.standalone);
+let view = !legacyPwaLaunch && VIEWS.some(item => item.id === initialView) ? initialView : 'cards';
+if (legacyPwaLaunch) history.replaceState(null, '', '#cards');
 let reviewYear = Number(selectedDay.slice(0, 4));
 let reviewDayExpanded = false;
 let reviewFullDay = false;
@@ -156,10 +161,10 @@ function toggleDemo() {
     demoState = null;
     selectedDay = dateKey();
   }
-  view = 'today';
+  view = 'cards';
   reviewYear = Number(selectedDay.slice(0, 4));
   reviewDayExpanded = false;
-  history.replaceState(null, '', '#today');
+  history.replaceState(null, '', '#cards');
   render();
   if (!demo && !account.user) $('#google-sign-in').focus({ preventScroll: true });
   announce(demo ? 'You entered a guest session. Sample records stay separate from your account.' : account.user ? 'You returned to your records.' : 'You returned to the sign-in page.');

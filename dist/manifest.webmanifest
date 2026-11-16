@@ -4,7 +4,7 @@
   "short_name": "DailyKarte",
   "description": "Record what you just finished with one tap.",
   "lang": "en",
-  "start_url": "./#today",
+  "start_url": "./#cards",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f6f7f5",
